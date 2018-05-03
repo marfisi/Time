@@ -1,4 +1,4 @@
-package it.cascino.model;
+package it.cascino.time.dbpg.model;
 
 import java.io.Serializable;
 import javax.persistence.*;
@@ -12,7 +12,7 @@ import java.sql.Timestamp;
 @NamedQueries({
 		@NamedQuery(name = "Produttori.findAll", query = "SELECT p FROM Produttori p WHERE p.id != 1 order by p.nome")
 })
-public class Produttori implements Serializable{
+public class PgProduttori implements Serializable{
 	private static final long serialVersionUID = 1L;
 	
 	private Integer id;
@@ -21,10 +21,10 @@ public class Produttori implements Serializable{
 	private Integer idFoto;
 	private Timestamp updtime;
 	
-	public Produttori(){
+	public PgProduttori(){
 	}
 	
-	public Produttori(Integer id, String nome, String dati, Integer idFoto, Timestamp updtime){
+	public PgProduttori(Integer id, String nome, String dati, Integer idFoto, Timestamp updtime){
 		super();
 		this.id = id;
 		this.nome = nome;
@@ -97,8 +97,8 @@ public class Produttori implements Serializable{
 	
 	@Override
 	public boolean equals(Object obj){
-		if(obj instanceof Produttori){
-			if(this.id == ((Produttori)obj).id){
+		if(obj instanceof PgProduttori){
+			if(this.id == ((PgProduttori)obj).id){
 				return true;
 			}else{
 				return false;

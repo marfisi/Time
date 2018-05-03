@@ -1,4 +1,4 @@
-package it.cascino.model;
+package it.cascino.time.dbmysql.model;
 
 import java.io.Serializable;
 //import javax.inject.Inject;
@@ -15,9 +15,9 @@ import javax.persistence.*;
 @NamedQueries({
 		@NamedQuery(name = "Myartmag.findAll", query = "SELECT a FROM Myartmag a order by a.oarti asc"),
 		@NamedQuery(name = "Myartmag.findById", query = "SELECT a FROM Myartmag a WHERE a.oarti = :oarti"),
-		@NamedQuery(name = "Myartmag.updById", query = "UPDATE Myartmag a set a.oartiXgrup = :oarti_xgrup, a.cprecDarti = :cprec_darti where a.oarti = :oarti")
+		@NamedQuery(name = "Myartmag.updById", query = "UPDATE Myartmag a set a.oartiXgrup = :oarti_xgrup where a.oarti = :oarti")
 })
-public class Myartmag implements Serializable{
+public class MysMyartmag implements Serializable{
 	private static final long serialVersionUID = 1L;
 	
 	/**
@@ -29,16 +29,15 @@ public class Myartmag implements Serializable{
 //	private Integer id;
 	private String oarti;
 	private String oarti_xgrup;
-	private String cprec_darti;
+//	private String cprec_darti;
 	
-	public Myartmag(){
+	public MysMyartmag(){
 	}
 	
-	public Myartmag(String oarti, String oarti_xgrup, String cprec_darti){
+	public MysMyartmag(String oarti, String oarti_xgrup){
 		super();
 		this.oarti = oarti;
 		this.oarti_xgrup = oarti_xgrup;
-		this.cprec_darti = cprec_darti;
 	}
 	
 //	@Id
@@ -75,15 +74,6 @@ public class Myartmag implements Serializable{
 		this.oarti_xgrup = oarti_xgrup;
 	}
 	
-	@Column(name = "cprec_darti")
-	public String getCprecDarti(){
-		return this.cprec_darti;
-	}
-	
-	public void setCprecDarti(String cprec_darti){
-		this.cprec_darti = cprec_darti;
-	}
-	
 	@Override
 	public String toString(){
 		StringBuilder stringBuilder = new StringBuilder();
@@ -91,8 +81,7 @@ public class Myartmag implements Serializable{
 		stringBuilder.append("[");
 //		if(id != null){
 			stringBuilder.append("oarti=" + oarti).append(", ");
-			stringBuilder.append("oarti_xgrup=" + oarti_xgrup).append(", ");
-			stringBuilder.append("cprec_darti=" + cprec_darti);
+			stringBuilder.append("oarti_xgrup=" + oarti_xgrup);
 //		}else{
 //			stringBuilder.append("id=1");
 //		}
@@ -102,8 +91,8 @@ public class Myartmag implements Serializable{
 	
 	@Override
 	public boolean equals(Object obj){
-		if(obj instanceof Articoli){
-			if(this.oarti == ((Myartmag)obj).oarti){
+		if(obj instanceof MysMyartmag){
+			if(this.oarti == ((MysMyartmag)obj).oarti){
 				return true;
 			}else{
 				return false;
@@ -118,7 +107,6 @@ public class Myartmag implements Serializable{
 		int result = 1;
 		result = prime * result + ((oarti == null) ? 0 : oarti.hashCode());
 		result = prime * result + ((oarti_xgrup == null) ? 0 : oarti_xgrup.hashCode());
-		result = prime * result + ((cprec_darti == null) ? 0 : cprec_darti.hashCode());
 		return result;
 	}
 }

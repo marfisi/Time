@@ -1,4 +1,4 @@
-package it.cascino.model;
+package it.cascino.time.dbpg.model;
 
 import java.io.Serializable;
 import javax.persistence.*;
@@ -14,7 +14,7 @@ import java.sql.Timestamp;
 		@NamedQuery(name = "Articoli.findById", query = "SELECT a FROM Articoli a WHERE a.id = :id"),
 		@NamedQuery(name = "Articoli.findByCodiceArticolo", query = "SELECT a FROM Articoli a WHERE a.codice = :codiceArticolo")
 })
-public class Articoli implements Serializable{
+public class PgArticoli implements Serializable{
 	private static final long serialVersionUID = 1L;
 	
 	private Integer id;
@@ -27,10 +27,10 @@ public class Articoli implements Serializable{
 	private Integer tipo;
 	private Timestamp updtime;
 	
-	public Articoli(){
+	public PgArticoli(){
 	}
 	
-	public Articoli(Integer id, Integer articoloFornitore, String codice, String descrizione, String modello, String nome, Integer produttore, Integer tipo, Timestamp updtime){
+	public PgArticoli(Integer id, Integer articoloFornitore, String codice, String descrizione, String modello, String nome, Integer produttore, Integer tipo, Timestamp updtime){
 		super();
 		this.id = id;
 		this.codice = codice;
@@ -145,8 +145,8 @@ public class Articoli implements Serializable{
 	
 	@Override
 	public boolean equals(Object obj){
-		if(obj instanceof Articoli){
-			if(this.id == ((Articoli)obj).id){
+		if(obj instanceof PgArticoli){
+			if(this.id == ((PgArticoli)obj).id){
 				return true;
 			}else{
 				return false;

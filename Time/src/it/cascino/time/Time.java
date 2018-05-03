@@ -1,90 +1,70 @@
-package it.cascino;
+package it.cascino.time;
 
-import it.cascino.dao.ArticoliDao;
-import it.cascino.dao.MyartmagDao;
-import it.cascino.dao.MyprecodDao;
-import it.cascino.dao.ProduttoriDao;
-import it.cascino.mng.ArticoliDaoMng;
-import it.cascino.mng.MyartmagDaoMng;
-import it.cascino.mng.MyprecodDaoMng;
-import it.cascino.mng.ProduttoriDaoMng;
-import it.cascino.model.Articoli;
-import it.cascino.model.Myartmag;
-import it.cascino.model.Myprecod;
-import it.cascino.model.Produttori;
+import it.cascino.time.dbpg.dao.PgArticoliDao;
+import it.cascino.time.dbpg.managmenntbean.PgArticoliDaoMng;
+import it.cascino.time.dbpg.model.PgArticoli;
+import it.cascino.time.dbas.dao.AsTabe20fDao;
+import it.cascino.time.dbas.managmentbean.AsTabe20fDaoMng;
+import it.cascino.time.dbas.model.AsTabe20f;
+import it.cascino.time.dbmysql.dao.MysMyartmagDao;
+import it.cascino.time.dbmysql.dao.MysMyfotxarDao;
+import it.cascino.time.dbmysql.managmentbean.MysMyartmagDaoMng;
+import it.cascino.time.dbmysql.managmentbean.MysMyfotxarDaoMng;
+import it.cascino.time.dbmysql.model.MysMyartmag;
+import it.cascino.time.dbmysql.model.MysMyfotxar;
 import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
-// import javax.persistence.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
-import org.apache.log4j.PropertyConfigurator;
 
-public class RunTime{
-	private final static String dirFoto = "c:\\dev\\foto";
-	private final static String dirFotoTime = "t:";
+public class Time{
 	
-	private static ArticoliDao articoliDao = new ArticoliDaoMng();
-	// private static List<Articoli> articoliLs;
-	// private static Articoli articoliAry[];
+	private Logger log = Logger.getLogger(Time.class);
 	
-	private static ProduttoriDao produttoriDao = new ProduttoriDaoMng();
-	private static List<Produttori> produttoriLs;
-	private static Produttori produttoriAry[];
-	private static int prodSizePad = 0;
-	private static Map<Integer, String> produttoriMap = new HashMap<Integer, String>();
+	private final String dirFoto = "c:\\dev\\foto";
+	private final String dirFotoTime = "t:";
 	
-	private static MyartmagDao myartmagDao = new MyartmagDaoMng();
-	private static List<Myartmag> myartmagLs;
-	private static Myartmag myartmagAry[];
-	private static Myartmag myartmagAryAppoggio[];
+	private PgArticoliDao pgArticoliDao = new PgArticoliDaoMng();
+	// private static List<Articoli> pgArticoliLs;
+	// private static PgArticoli pgArticoliAry[];
 	
-	private static MyprecodDao myprecodDao = new MyprecodDaoMng();
+//	private static PgProduttoriDao pgProduttoriDao = new PgProduttoriDaoMng();
+//	private static List<PgProduttori> pgProduttoriLs;
+//	private static PgProduttori pgProduttoriAry[];
+//	private static int prodSizePad = 0;
+//	private static Map<Integer, String> produttoriMap = new HashMap<Integer, String>();
 	
-	private static List<Articoli> artInPostgresNonMyartmagLs;
+	private MysMyartmagDao mysMyartmagDao = new MysMyartmagDaoMng();
+	private List<MysMyartmag> mysMyartmagLs;
+	private MysMyartmag mysMyartmagAry[];
+	private MysMyartmag mysMyartmagAryAppoggio[];
 	
-	private static File fotoDaCancellareAry[] = null;
+	private MysMyfotxarDao mysMyfotxarDao = new MysMyfotxarDaoMng();
 	
-	static Logger log;
+	private AsTabe20fDao asTabe20fDao = new AsTabe20fDaoMng();
 	
-	public static void main(String args[]){
-		PropertyConfigurator.configure("logdir/logRunTime.properties");
-		log = Logger.getLogger(RunTime.class);
+	private File fotoDaCancellareAry[] = null;
+	
+	public Time(String args[]){
+		log.info("[" + "Time");
+				
+		mysMyartmagDao.resettaTabella();
 		
-		// log.debug("Test Livello DEBUG");
-		// log.info("Test Livello INFO");
-		// log.warn("Test Livello WARNING");
-		// log.error("Test Livello ERROR");
-		// log.fatal("Test Livello FATAL");
+		mysMyfotxarDao.svuotaTabella();
 		
-		myartmagDao.resettaTabella();
-		
-		myprecodDao.svuotaTabella();
-		produttoriLs = produttoriDao.getAll();
-		produttoriAry = produttoriLs.toArray(new Produttori[produttoriLs.size()]);
-		prodSizePad = StringUtils.length(Integer.toString(produttoriAry.length));
-		popolaMyprecod();
-		
-		myartmagLs = myartmagDao.getAll();
+		mysMyartmagLs = mysMyartmagDao.getAll();
 		// articoliLs = articoliDao.getAll();
-		myartmagAry = myartmagLs.toArray(new Myartmag[myartmagLs.size()]);
-		myartmagAryAppoggio = myartmagAry.clone();
+		mysMyartmagAry = mysMyartmagLs.toArray(new MysMyartmag[mysMyartmagLs.size()]);
+		mysMyartmagAryAppoggio = mysMyartmagAry.clone();
 		
 		// artMyartmagLs = identificaArtInMyartmagNonPostgres();
 		// artInPostgresNonMyartmagLs = identificaArtInPostgresNonMyartmag();
@@ -92,11 +72,11 @@ public class RunTime{
 		// fotoDaCancellareAry = new LinkedList<File>(Arrays.asList(getFileCaricati()));
 		fotoDaCancellareAry = getFileCaricati();
 		
-		Myartmag articoliTimeSenzaFoto[] = elaboraArtInMyartmag();
+		MysMyartmag articoliTimeSenzaFoto[] = elaboraArtInMyartmag();
 		// Iterator<Myartmag> iterArticoliTimeSenzaFoto = articoliTimeSenzaFoto.iterator();
 		log.info("articolo in time senza foto");
 		for(int i = 0; i < articoliTimeSenzaFoto.length; i++){
-			Myartmag myart = articoliTimeSenzaFoto[i];
+			MysMyartmag myart = articoliTimeSenzaFoto[i];
 			if(myart == null){
 				continue;
 			}
@@ -113,34 +93,29 @@ public class RunTime{
 			deleteFile(fotoDaCan);
 		}
 		
-		articoliDao.close();
-		produttoriDao.close();
-		myartmagDao.close();
-		myprecodDao.close();
+		pgArticoliDao.close();
+		mysMyartmagDao.close();
+		mysMyfotxarDao.close();
+		
+		log.info("]" + "Time");
 	}
 	
-	static Myartmag[] elaboraArtInMyartmag(){
-		log.info("start: " + "elaboraArtInMyartmag");
+	private MysMyartmag[] elaboraArtInMyartmag(){
+		log.info("[" + "elaboraArtInMyartmag");
 		
 		// List<String> oartiLs = new ArrayList<String>();
 		// List<String> oarti_xgrupLs = new ArrayList<String>();
 		// List<String> cprec_dartiLs = new ArrayList<String>();
-		for(int i = 0; i < myartmagAryAppoggio.length; i++){
-			Myartmag myartAppoggio = myartmagAryAppoggio[i];
+		for(int i = 0; i < mysMyartmagAryAppoggio.length; i++){
+			MysMyartmag myartAppoggio = mysMyartmagAryAppoggio[i];
 			
-			Articoli artic = articoliDao.getArticoloDaCodice(myartmagAry[i].getOarti());
+			PgArticoli artic = pgArticoliDao.getArticoloDaCodice(mysMyartmagAry[i].getOarti());
 			if(myartAppoggio != null){
-				myartmagAry[i].setOartiXgrup("0"); // non di appoggio
+				mysMyartmagAry[i].setOartiXgrup("0"); // non di appoggio
 			}
 			if(artic == null){
-				// se e' un articolo in ingrosso ma non nelle foto, quindi non so ne' i fratelli e nemmeno la marca, continuo e basta
+				// se e' un articolo in ingrosso ma non nelle foto, quindi non so i fratelli, continuo e basta
 				continue;
-			}
-			String prodPrec = produttoriMap.get(artic.getProduttore());
-			if((artic != null) && (prodPrec != null)){
-				myartmagAry[i].setCprecDarti(prodPrec);
-			}else{
-				myartmagAry[i].setCprecDarti("1");
 			}
 			
 			if(myartAppoggio == null){
@@ -149,7 +124,7 @@ public class RunTime{
 			log.info("articolo in time: " + myartAppoggio.getOarti());
 			
 			// identifico la foto per articolo in analisi
-			Integer idFoto = articoliDao.getFotoArticoloDaCodice(myartAppoggio.getOarti());
+			Integer idFoto = pgArticoliDao.getFotoArticoloDaCodice(myartAppoggio.getOarti());
 			
 			// se non ha foto disponibile, continuo con l'articolo successivo
 			if(idFoto == -1){
@@ -158,10 +133,16 @@ public class RunTime{
 			}
 			// quindi ha una foto
 			
-			String fotoSorgente = articoliDao.getFotoNameArticoloDaId(idFoto);
+			String fotoSorgente = pgArticoliDao.getFotoNameArticoloDaId(idFoto);
 			log.info("foto: " + fotoSorgente + " (id: " + idFoto + ")");
 			
+			MysMyfotxar mysMyfotxar = new MysMyfotxar();
+			mysMyfotxar.setCsoci("CASC");
+			mysMyfotxar.setCtipoDdocm("foto");
+			mysMyfotxar.setCreviDdocm("0");
+			
 			String fratelloMaggiore = null;
+			String fotoDestinazione = null;
 			if(true){// fratelloMaggiore == null){
 				log.info("e' un fratello maggiore");
 				fratelloMaggiore = myartAppoggio.getOarti();
@@ -176,8 +157,12 @@ public class RunTime{
 				}
 				
 				int ordineFoto = 0;
-				String fotoDestinazione = fratelloMaggiore + "_" + ordineFoto + "_A_0_" + fratelloMaggiore + "." + estensioneFile;
-				
+				fotoDestinazione = fratelloMaggiore + "_" + ordineFoto + "_A_0_" + fratelloMaggiore + "." + estensioneFile;
+
+				mysMyfotxar.setOarti(fratelloMaggiore);
+				mysMyfotxar.setTfileDdocm(fotoDestinazione);
+				mysMyfotxarDao.salva(mysMyfotxar);
+
 				// rimuovo dalla lista delle foto da cancellare
 				File fileDaCanc = new File(dirFotoTime, fotoDestinazione);
 				log.info("file: " + fileDaCanc.getAbsolutePath());
@@ -200,12 +185,12 @@ public class RunTime{
 				}
 				log.info("elaborato articolo maggiore " + myartAppoggio.getOarti() + " e quindi rimossa dalla lista l'articolo");
 				// iterMyartmag.remove();
-				myartmagAryAppoggio[i] = null;
+				mysMyartmagAryAppoggio[i] = null;
 			}
 			
 			// cerco se ha fratelli (compreso se stesso) che condividono la stessa foto
-			List<Articoli> fratelliLs = articoliDao.getArticoloFratelliLsDaCodiceFoto(idFoto);
-			Articoli fratelliAry[] = fratelliLs.toArray(new Articoli[fratelliLs.size()]);
+			List<PgArticoli> fratelliLs = pgArticoliDao.getArticoloFratelliLsDaCodiceFoto(idFoto);
+			PgArticoli fratelliAry[] = fratelliLs.toArray(new PgArticoli[fratelliLs.size()]);
 			log.info("fratelli: " + fratelliAry.length);
 			
 			if(fratelliAry.length == 1){ // e' solo lui
@@ -214,11 +199,11 @@ public class RunTime{
 			
 			// Iterator<Articoli> iterArticoli = fratelliLs.iterator();
 			for(int j = 0; j < fratelliAry.length; j++){
-				Articoli art = fratelliAry[j];
+				PgArticoli art = fratelliAry[j];
 				log.info("articolo: " + art.getCodice() + " (id: " + art.getId() + ")");
 				
 				// controllo che effettivamente l'articolo abbia la foto come ordine minore e non come secondo o altro
-				boolean ePrimaFoto = articoliDao.checkArticoloHaComePrimaFotoIdFoto(art, idFoto);
+				boolean ePrimaFoto = pgArticoliDao.checkArticoloHaComePrimaFotoIdFoto(art, idFoto);
 				
 				if(!(ePrimaFoto)){
 					log.info("non coincide con la foto di ordine minore (fratello scartato)");
@@ -234,18 +219,27 @@ public class RunTime{
 					// myartmagDao.definisciFratelloMaggiore(art.getCodice(), fratelloMaggiore);
 					// oartiLs.add(art.getCodice());
 					// oarti_xgrupLs.add(fratelloMaggiore);
+
+					mysMyfotxar = new MysMyfotxar();
+					mysMyfotxar.setCsoci("CASC");
+					mysMyfotxar.setCtipoDdocm("foto");
+					mysMyfotxar.setCreviDdocm("0");
+					mysMyfotxar.setOarti(art.getCodice());
+					mysMyfotxar.setTfileDdocm(fotoDestinazione);
+
+					mysMyfotxarDao.salva(mysMyfotxar);
 					
 					log.info("elaborato articolo minore " + art.getCodice() + " e quindi rimossa dalla lista l'articolo");
 					
-					for(int y = 0; y < myartmagAryAppoggio.length; y++){
-						Myartmag myartRem = myartmagAryAppoggio[y];
+					for(int y = 0; y < mysMyartmagAryAppoggio.length; y++){
+						MysMyartmag myartRem = mysMyartmagAryAppoggio[y];
 						if(myartRem == null){
 							continue;
 						}
 						if(StringUtils.equals(myartRem.getOarti(), art.getCodice())){
 							log.info("Rimossa: " + myartRem.getOarti() + ", " + myartRem.getOartiXgrup());
-							myartmagAryAppoggio[y] = null;
-							myartmagAry[y].setOartiXgrup(fratelloMaggiore);
+							mysMyartmagAryAppoggio[y] = null;
+							mysMyartmagAry[y].setOartiXgrup(fratelloMaggiore);
 						}
 					}
 				}
@@ -256,18 +250,18 @@ public class RunTime{
 		// String oarti_xgrupAry[] = oarti_xgrupLs.toArray(new String[oarti_xgrupLs.size()]);
 		// String cprec_dartiAry[] = cprec_dartiLs.toArray(new String[cprec_dartiLs.size()]);
 		// myartmagDao.aggiornaXgrupCprec(oartiAry, oarti_xgrupAry, cprec_dartiAry);
-		myartmagDao.aggiornaXgrupCprec(myartmagAry);
+		mysMyartmagDao.aggiornaXgrup(mysMyartmagAry);
 		
-		log.info("stop: " + "elaboraArtInMyartmag");
+		log.info("]" + "elaboraArtInMyartmag");
 		// ritorna tutti gli articoli che non hanno comunque foto
 		// return artMyartmagLs;
 		// return new LinkedList<Myartmag>(Arrays.asList(myartmagAry));
-		return myartmagAryAppoggio;
+		return mysMyartmagAryAppoggio;
 	}
 	
 	// restituisce la lista delle foto già caricate sulla cartella di time
 	// utilizza unita' di rete mappata su T: === \\time.cascino.it\c$\MyMB\Archives\articoli_img\B2B\0
-	public static File[] getFileCaricati(){
+	private File[] getFileCaricati(){
 		File dirTime = new File(dirFotoTime);
 		File fileGiaCaricati[] = dirTime.listFiles();
 		
@@ -277,61 +271,7 @@ public class RunTime{
 		return fileGiaCaricati;
 	}
 	
-	// static List<Myartmag> identificaArtInMyartmagNonPostgres(){
-	// log.info("start: " + "identificaArtInMyartmagNonPostgres");
-	// artMyartmagLs = myartmagLs;
-	// Iterator<Myartmag> iterMyartmag = artMyartmagLs.iterator();
-	// Iterator<Articoli> iterArticoli = articoliLs.iterator();
-	// while(iterMyartmag.hasNext()){
-	// Myartmag myart = iterMyartmag.next();
-	// while(iterArticoli.hasNext()){
-	// Articoli art = iterArticoli.next();
-	// // se la trovo in postgresql, la tolgo
-	// if(StringUtils.equals(myart.getOarti(), art.getCodice())){
-	// // artMyartmagLs.remove(myart);
-	// iterMyartmag.remove();
-	// // iterMyartmag = artMyartmagLs.iterator();
-	// log.info("Rimossa: " + myart.getOarti());
-	// break;
-	// }
-	// }
-	// }
-	// log.info("stop: " + "identificaArtInMyartmagNonPostgres");
-	// return artMyartmagLs;
-	// }
-	
-	// static List<Articoli> identificaArtInPostgresNonMyartmag(){
-	// log.info("start: " + "identificaArtInPostgresNonMyartmag");
-	// artInPostgresNonMyartmagLs = articoliLs;
-	// Iterator<Articoli> iterArticoli = artInPostgresNonMyartmagLs.iterator();
-	// Iterator<Myartmag> iterMyartmag = myartmagLs.iterator();
-	// while(iterArticoli.hasNext()){
-	// Articoli art = iterArticoli.next();
-	// while(iterMyartmag.hasNext()){
-	// Myartmag myart = iterMyartmag.next();
-	// // se la trovo in mysql, la tolgo
-	// if(StringUtils.equals(art.getCodice(), myart.getOarti())){
-	// // artInPostgresNonMyartmagLs.remove(art);
-	// iterArticoli.remove();
-	// // iterArticoli = artInPostgresNonMyartmagLs.iterator();
-	// log.info("Rimossa: " + art.getCodice());
-	// break;
-	// }
-	// }
-	// }
-	// log.info("stop: " + "identificaArtInPostgresNonMyartmag");
-	// return artInPostgresNonMyartmagLs;
-	// }
-	
-	public static void deleteFile(String path, String name){
-		File file = null;
-		if((path != null) && (name != null)){
-			file = new File(path, name);
-		}
-		deleteFile(file);
-	}
-	
-	public static void deleteFile(File file){
+	private void deleteFile(File file){
 		System.gc();
 		// log.info("file " + (file.canExecute()?"true":"false"));
 		// log.info("file " + (file.canRead()?"true":"false"));
@@ -351,7 +291,7 @@ public class RunTime{
 		}
 	}
 	
-	public static Path copyFile(String pathSource, String nameSouce, String pathDestination, String nameDestination){
+	private Path copyFile(String pathSource, String nameSouce, String pathDestination, String nameDestination){
 		File fileSource = null;
 		File fileDestination = null;
 		if((pathSource != null) && (nameSouce != null)){
@@ -363,7 +303,7 @@ public class RunTime{
 		return copyFile(fileSource, fileDestination);
 	}
 	
-	public static Path copyFile(File fileSource, File fileDestination){
+	private Path copyFile(File fileSource, File fileDestination){
 		System.gc();
 		Path targetFile = null;
 		if((fileSource != null) && (Files.exists(fileSource.toPath())) && (fileDestination != null)){
@@ -399,7 +339,7 @@ public class RunTime{
 		return targetFile;
 	}
 	
-	private static void convertiInJpg(String pathDestination, String nameDestination){
+	private void convertiInJpg(String pathDestination, String nameDestination){
 		File fileDestination = null;
 		if((pathDestination != null) && (nameDestination != null)){
 			fileDestination = new File(pathDestination, nameDestination);
@@ -422,7 +362,7 @@ public class RunTime{
 		}
 	}
 	
-	private static String getResolution(File f){
+	private String getResolution(File f){
 		BufferedImage fimg = null;
 		try{
 			if((StringUtils.containsIgnoreCase(f.getPath(), "jpg")) || (StringUtils.containsIgnoreCase(f.getPath(), "jpeg"))){
@@ -438,7 +378,7 @@ public class RunTime{
 		return (fimg == null) ? "n.d." : fimg.getWidth() + "x" + fimg.getHeight() + "px";
 	}
 	
-	private static BufferedImage manageFileJpeg(File f) throws IOException{
+	private BufferedImage manageFileJpeg(File f) throws IOException{
 		Iterator<ImageReader> readers = ImageIO.getImageReadersByFormatName("JPEG");
 		ImageReader reader = null;
 		while(readers.hasNext()){
@@ -457,23 +397,5 @@ public class RunTime{
 		// Create a new RGB image
 		BufferedImage bi = new BufferedImage(raster.getWidth(), raster.getHeight(), BufferedImage.TYPE_4BYTE_ABGR);
 		return bi;
-	}
-	
-	static void popolaMyprecod(){
-		log.info("start: " + "popolaMyprecod");
-		Calendar calendar = Calendar.getInstance();
-		Date now = calendar.getTime();
-		Timestamp currentTimestamp = new Timestamp(now.getTime());
-		
-		for(int i = 0; i < produttoriAry.length; i++){
-			Produttori prod = produttoriAry[i];
-			Myprecod precodice = new Myprecod("CASC", "1", currentTimestamp, "nome marca");
-			String precodiceString = StringUtils.substring(prod.getNome(), 0, 4) + StringUtils.leftPad(Integer.toString(prod.getId()), prodSizePad, "0");
-			precodice.setCprecDarti(precodiceString);
-			precodice.setTprecDarti(prod.getNome());
-			myprecodDao.salva(precodice);
-			produttoriMap.put(prod.getId(), precodiceString);
-		}
-		log.info("stop: " + "popolaMyprecod");
 	}
 }

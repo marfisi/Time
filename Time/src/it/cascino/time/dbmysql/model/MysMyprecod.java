@@ -1,4 +1,4 @@
-package it.cascino.model;
+package it.cascino.time.dbmysql.model;
 
 import java.io.Serializable;
 import java.sql.Timestamp;
@@ -18,7 +18,7 @@ import javax.persistence.*;
 		@NamedQuery(name = "Myprecod.findByCprecDarti", query = "SELECT p FROM Myprecod p WHERE p.cprecDarti = :cprec_darti"),
 		@NamedQuery(name = "Myprecod.svuota", query = "DELETE FROM Myprecod p WHERE p.cprecDarti != '1'")
 })
-public class Myprecod implements Serializable{
+public class MysMyprecod implements Serializable{
 	private static final long serialVersionUID = 1L;
 	
 	/**
@@ -33,10 +33,10 @@ public class Myprecod implements Serializable{
 	private Timestamp iprec_darti;
 	private String tprec_darti;
 	
-	public Myprecod(){
+	public MysMyprecod(){
 	}
 	
-	public Myprecod(String csoci, String cprec_darti, Timestamp iprec_darti, String tprec_darti){
+	public MysMyprecod(String csoci, String cprec_darti, Timestamp iprec_darti, String tprec_darti){
 		super();
 		this.csoci = csoci;
 		this.cprec_darti = cprec_darti;
@@ -95,8 +95,8 @@ public class Myprecod implements Serializable{
 	
 	@Override
 	public boolean equals(Object obj){
-		if(obj instanceof Articoli){
-			if(this.cprec_darti == ((Myprecod)obj).cprec_darti){
+		if(obj instanceof MysMyprecod){
+			if(this.cprec_darti == ((MysMyprecod)obj).cprec_darti){
 				return true;
 			}else{
 				return false;

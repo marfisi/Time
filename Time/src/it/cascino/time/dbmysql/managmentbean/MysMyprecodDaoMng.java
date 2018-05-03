@@ -1,34 +1,32 @@
-package it.cascino.mng;
+package it.cascino.time.dbmysql.managmentbean;
 
 import java.io.Serializable;
 import java.util.List;
-import it.cascino.model.Myprecod;
-import java.util.Iterator;
-import it.cascino.dao.MyprecodDao;
+import it.cascino.time.dbmysql.model.MysMyprecod;
+import it.cascino.time.utils.Resources;
+import it.cascino.time.dbmysql.dao.MysMyprecodDao;
 import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
 import javax.persistence.EntityTransaction;
 import javax.persistence.NoResultException;
-import javax.persistence.Persistence;
 import javax.persistence.Query;
 import org.apache.log4j.Logger;
 
-public class MyprecodDaoMng implements MyprecodDao, Serializable{
+public class MysMyprecodDaoMng implements MysMyprecodDao, Serializable{
 	private static final long serialVersionUID = 1L;
-	private EntityManagerFactory emf = Persistence.createEntityManagerFactory("Time");
-	private EntityManager em = emf.createEntityManager();
-	private EntityTransaction utx = em.getTransaction();
+	private Resources res = new Resources();
+	private EntityManager em = res.getEmMysql();
+	private EntityTransaction utx = res.getUtxMysql();
 	
-	Logger log = Logger.getLogger(MyprecodDaoMng.class);
+	Logger log = Logger.getLogger(MysMyprecodDaoMng.class);
 	
 	@SuppressWarnings("unchecked")
-	public List<Myprecod> getAll(){
-		List<Myprecod> precodici = null;
+	public List<MysMyprecod> getAll(){
+		List<MysMyprecod> precodici = null;
 		try{
 			try{
 				utx.begin();
 				Query query = em.createNamedQuery("Myartmag.findAll");
-				precodici = (List<Myprecod>)query.getResultList();
+				precodici = (List<MysMyprecod>)query.getResultList();
 			}catch(NoResultException e){
 				precodici = null;
 			}
@@ -39,7 +37,7 @@ public class MyprecodDaoMng implements MyprecodDao, Serializable{
 		return precodici;
 	}
 	
-	public void salva(Myprecod precodice){
+	public void salva(MysMyprecod precodice){
 		try{
 			try{
 				utx.begin();
@@ -54,7 +52,7 @@ public class MyprecodDaoMng implements MyprecodDao, Serializable{
 		}
 	}
 	
-	public void aggiorna(Myprecod precodice){
+	public void aggiorna(MysMyprecod precodice){
 		try{
 			try{
 				utx.begin();
@@ -68,12 +66,12 @@ public class MyprecodDaoMng implements MyprecodDao, Serializable{
 		}
 	}
 	
-	public void elimina(Myprecod precodiceElimina){
+	public void elimina(MysMyprecod precodiceElimina){
 		// log.info("tmpDEBUGtmp: " + "> " + "elimina(" + produttoreElimina + ")");
 		try{
 			try{
 				utx.begin();
-				Myprecod precodice = em.find(Myprecod.class, precodiceElimina.getCprecDarti());
+				MysMyprecod precodice = em.find(MysMyprecod.class, precodiceElimina.getCprecDarti());
 				log.info("elimina: " + precodice.toString());
 				em.remove(precodice);
 			}finally{
@@ -84,14 +82,14 @@ public class MyprecodDaoMng implements MyprecodDao, Serializable{
 		}
 	}
 	
-	public Myprecod getMyprecodDaCprecDarti(Integer idPrecDarti){
-		Myprecod precodice = new Myprecod();
+	public MysMyprecod getMyprecodDaCprecDarti(Integer idPrecDarti){
+		MysMyprecod precodice = new MysMyprecod();
 		try{
 			try{
 				utx.begin();
-				Query query = em.createNamedQuery("Myprecod.findByCprecDarti", Myprecod.class);
+				Query query = em.createNamedQuery("Myprecod.findByCprecDarti", MysMyprecod.class);
 				query.setParameter("cprec_darti", Integer.toString(idPrecDarti));
-				precodice = (Myprecod)query.getSingleResult();
+				precodice = (MysMyprecod)query.getSingleResult();
 			}catch(NoResultException e){
 				precodice = null;
 			}
@@ -117,8 +115,7 @@ public class MyprecodDaoMng implements MyprecodDao, Serializable{
 	}
 	
 	public void close(){
-		em.close();
-		emf.close();
+		res.close();
 		log.info("chiuso");
 	}
 }
