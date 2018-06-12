@@ -14,7 +14,7 @@ import javax.persistence.*;
 @Entity(name="Myartmag")
 @NamedQueries({
 		@NamedQuery(name = "Myartmag.findAll", query = "SELECT a FROM Myartmag a order by a.oarti asc"),
-		@NamedQuery(name = "Myartmag.findById", query = "SELECT a FROM Myartmag a WHERE a.oarti = :oarti"),
+		@NamedQuery(name = "Myartmag.findByOarti", query = "SELECT a FROM Myartmag a WHERE a.oarti = :oarti"),
 		@NamedQuery(name = "Myartmag.updById", query = "UPDATE Myartmag a set a.oartiXgrup = :oarti_xgrup where a.oarti = :oarti")
 })
 public class MysMyartmag implements Serializable{

@@ -3,8 +3,14 @@ package it.cascino.time;
 import it.cascino.time.dbpg.dao.PgArticoliDao;
 import it.cascino.time.dbpg.managmenntbean.PgArticoliDaoMng;
 import it.cascino.time.dbpg.model.PgArticoli;
+import it.cascino.time.dbas.dao.AsAnmag0fDao;
+import it.cascino.time.dbas.dao.AsAnmar0fDao;
 import it.cascino.time.dbas.dao.AsTabe20fDao;
+import it.cascino.time.dbas.managmentbean.AsAnmag0fDaoMng;
+import it.cascino.time.dbas.managmentbean.AsAnmar0fDaoMng;
 import it.cascino.time.dbas.managmentbean.AsTabe20fDaoMng;
+import it.cascino.time.dbas.model.AsAnmag0f;
+import it.cascino.time.dbas.model.AsAnmar0f;
 import it.cascino.time.dbas.model.AsTabe20f;
 import it.cascino.time.dbmysql.dao.MysMyartmagDao;
 import it.cascino.time.dbmysql.dao.MysMyfotxarDao;
@@ -18,6 +24,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import javax.imageio.ImageIO;
@@ -46,12 +53,18 @@ public class Time{
 	private MysMyartmagDao mysMyartmagDao = new MysMyartmagDaoMng();
 	private List<MysMyartmag> mysMyartmagLs;
 	private MysMyartmag mysMyartmagAry[];
-	private MysMyartmag mysMyartmagAryAppoggio[];
+	//private MysMyartmag mysMyartmagAryAppoggio[];
 	
 	private MysMyfotxarDao mysMyfotxarDao = new MysMyfotxarDaoMng();
 	
-	private AsTabe20fDao asTabe20fDao = new AsTabe20fDaoMng();
+	// private AsTabe20fDao asTabe20fDao = new AsTabe20fDaoMng();
 	
+	private AsAnmag0fDao asAnmag0fDao = new AsAnmag0fDaoMng();
+	private List<AsAnmag0f> asAnmagLs;
+
+	private AsAnmar0fDao asAnmar0fDao = new AsAnmar0fDaoMng();
+	private List<AsAnmar0f> asAnmarLs;
+
 	private File fotoDaCancellareAry[] = null;
 	
 	public Time(String args[]){
@@ -61,27 +74,144 @@ public class Time{
 		
 		mysMyfotxarDao.svuotaTabella();
 		
-		mysMyartmagLs = mysMyartmagDao.getAll();
-		// articoliLs = articoliDao.getAll();
+		asAnmarLs = asAnmar0fDao.getAll();
+		
+		fotoDaCancellareAry = getFileCaricati();
+		
+		mysMyartmagLs = new ArrayList<MysMyartmag>();
+		
+		Iterator<AsAnmar0f> iter_asAnmar = asAnmarLs.iterator();
+		while(iter_asAnmar.hasNext()){
+			AsAnmar0f asAnmar0f = iter_asAnmar.next();
+			log.info("raggruppamento: " + asAnmar0f.getMcomp() + " - " +  asAnmar0f.getMdes1());
+			
+			if(StringUtils.isEmpty(asAnmar0f.getMfoto())){
+				log.warn(asAnmar0f.getMcomp() + " non ha nessuna foto definita");
+				continue;
+			}
+			
+			String fotoSorgente = StringUtils.trim(StringUtils.split(asAnmar0f.getMfoto(), ",")[0]);
+			log.info("foto: " + fotoSorgente);
+			
+			String estensioneFile = StringUtils.lowerCase(fotoSorgente.substring(fotoSorgente.lastIndexOf(".") + 1));
+			// l'uinica estensione ammessa e' jpg
+			boolean estensioneAmmessa = true;
+			if(!(StringUtils.equals(estensioneFile, "jpg"))){
+				log.warn("estensione non gestita (" + estensioneFile + "), file: " + fotoSorgente);
+				estensioneAmmessa = false;
+				estensioneFile = "jpg";
+			}
+							
+			asAnmagLs = asAnmag0fDao.getArticoliDaMcompIngrosso(asAnmar0f.getMcomp());
+			
+			if(asAnmagLs.isEmpty()){
+				log.warn("raggruppamento " + asAnmar0f.getMcomp() + " non ha articoli all'ingrosso");
+				continue;
+			}
+			
+			log.info("gruppo di " + asAnmagLs.size());
+			
+			Iterator<AsAnmag0f> iter_asAnmag = asAnmagLs.iterator();
+			Boolean soloPrimo = true;
+			String fratelloMaggiore = null;
+			String fotoDestinazione = null;
+			while(iter_asAnmag.hasNext()){
+				AsAnmag0f asAnmag0f = iter_asAnmag.next();
+				
+				MysMyartmag mysMyartmag = mysMyartmagDao.getDaOarti(asAnmag0f.getMcoda());
+				if(mysMyartmag == null){
+					log.error(asAnmag0f.getMcoda() + " non presente in Myartmag");
+					continue;
+				}						
+				
+				if(soloPrimo){
+					log.info("e' un fratello maggiore");
+					fratelloMaggiore = mysMyartmag.getOarti();
+					
+					mysMyartmag.setOartiXgrup("0");
+					
+					int ordineFoto = 0;
+					fotoDestinazione = fratelloMaggiore + "_" + ordineFoto + "_A_0_" + fratelloMaggiore + "." + estensioneFile;
+					
+					// rimuovo dalla lista delle foto da cancellare
+					File fileDaCanc = new File(dirFotoTime, fotoDestinazione);
+					log.info("file: " + fileDaCanc.getAbsolutePath());
+					if(fileDaCanc.exists()){
+						log.info("il file " + fileDaCanc.getAbsolutePath() + " deve rimanere");
+						for(int j = 0; j < fotoDaCancellareAry.length; j++){
+							if(fotoDaCancellareAry[j] == null){
+								continue;
+							}
+							if(StringUtils.equals(fotoDaCancellareAry[j].getName(), fileDaCanc.getName())){
+								fotoDaCancellareAry[j] = null;
+								break;
+							}
+						}
+					}
+					
+					copyFile(dirFoto, fotoSorgente, dirFotoTime, fotoDestinazione);
+					if(!(estensioneAmmessa)){
+						convertiInJpg(dirFotoTime, fotoDestinazione);
+					}
+
+					soloPrimo = false;
+				}else{
+					log.info("e' un fratello minore che deve ereditare la foto del fratello maggiore (" + fratelloMaggiore + ")");
+					
+					mysMyartmag.setOartiXgrup(fratelloMaggiore);					
+				}
+				
+				mysMyartmagLs.add(mysMyartmag);
+				
+				// in myfotxar vanno tutti gli articoli, sia fratelli maggiori che minori 
+				MysMyfotxar mysMyfotxar = new MysMyfotxar();
+				mysMyfotxar.setCsoci("CASC");
+				mysMyfotxar.setCtipoDdocm("foto");
+				mysMyfotxar.setCreviDdocm("0");
+				mysMyfotxar.setOarti(mysMyartmag.getOarti());
+				mysMyfotxar.setTfileDdocm(fotoDestinazione);
+				mysMyfotxarDao.salva(mysMyfotxar);
+			}
+		}
+		
+		
 		mysMyartmagAry = mysMyartmagLs.toArray(new MysMyartmag[mysMyartmagLs.size()]);
-		mysMyartmagAryAppoggio = mysMyartmagAry.clone();
+		
+		mysMyartmagDao.aggiornaXgrup(mysMyartmagAry);
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+//		mysMyartmagLs = mysMyartmagDao.getAll();
+		// articoliLs = articoliDao.getAll();
+//		mysMyartmagAry = mysMyartmagLs.toArray(new MysMyartmag[mysMyartmagLs.size()]);
+//		mysMyartmagAryAppoggio = mysMyartmagAry.clone();
 		
 		// artMyartmagLs = identificaArtInMyartmagNonPostgres();
 		// artInPostgresNonMyartmagLs = identificaArtInPostgresNonMyartmag();
 		
 		// fotoDaCancellareAry = new LinkedList<File>(Arrays.asList(getFileCaricati()));
-		fotoDaCancellareAry = getFileCaricati();
 		
-		MysMyartmag articoliTimeSenzaFoto[] = elaboraArtInMyartmag();
-		// Iterator<Myartmag> iterArticoliTimeSenzaFoto = articoliTimeSenzaFoto.iterator();
-		log.info("articolo in time senza foto");
-		for(int i = 0; i < articoliTimeSenzaFoto.length; i++){
-			MysMyartmag myart = articoliTimeSenzaFoto[i];
-			if(myart == null){
-				continue;
-			}
-			log.info("articolo in time: " + myart.getOarti());
-		}
+		
+//		MysMyartmag articoliTimeSenzaFoto[] = elaboraArtInMyartmag();
+//		// Iterator<Myartmag> iterArticoliTimeSenzaFoto = articoliTimeSenzaFoto.iterator();
+//		log.info("articolo in time senza foto");
+//		for(int i = 0; i < articoliTimeSenzaFoto.length; i++){
+//			MysMyartmag myart = articoliTimeSenzaFoto[i];
+//			if(myart == null){
+//				continue;
+//			}
+//			log.info("articolo in time: " + myart.getOarti());
+//		}
 		
 		log.info("foto da cancellare");
 		for(int i = 0; i < fotoDaCancellareAry.length; i++){
@@ -93,171 +223,173 @@ public class Time{
 			deleteFile(fotoDaCan);
 		}
 		
-		pgArticoliDao.close();
+		//pgArticoliDao.close();
+		asAnmar0fDao.close();
+		asAnmag0fDao.close();
 		mysMyartmagDao.close();
 		mysMyfotxarDao.close();
 		
 		log.info("]" + "Time");
 	}
 	
-	private MysMyartmag[] elaboraArtInMyartmag(){
-		log.info("[" + "elaboraArtInMyartmag");
-		
-		// List<String> oartiLs = new ArrayList<String>();
-		// List<String> oarti_xgrupLs = new ArrayList<String>();
-		// List<String> cprec_dartiLs = new ArrayList<String>();
-		for(int i = 0; i < mysMyartmagAryAppoggio.length; i++){
-			MysMyartmag myartAppoggio = mysMyartmagAryAppoggio[i];
-			
-			PgArticoli artic = pgArticoliDao.getArticoloDaCodice(mysMyartmagAry[i].getOarti());
-			if(myartAppoggio != null){
-				mysMyartmagAry[i].setOartiXgrup("0"); // non di appoggio
-			}
-			if(artic == null){
-				// se e' un articolo in ingrosso ma non nelle foto, quindi non so i fratelli, continuo e basta
-				continue;
-			}
-			
-			if(myartAppoggio == null){
-				continue;
-			}
-			log.info("articolo in time: " + myartAppoggio.getOarti());
-			
-			// identifico la foto per articolo in analisi
-			Integer idFoto = pgArticoliDao.getFotoArticoloDaCodice(myartAppoggio.getOarti());
-			
-			// se non ha foto disponibile, continuo con l'articolo successivo
-			if(idFoto == -1){
-				log.warn("non ha foto disponibile");
-				continue;
-			}
+//	private MysMyartmag[] elaboraArtInMyartmag(){
+//		log.info("[" + "elaboraArtInMyartmag");
+//		
+//		// List<String> oartiLs = new ArrayList<String>();
+//		// List<String> oarti_xgrupLs = new ArrayList<String>();
+//		// List<String> cprec_dartiLs = new ArrayList<String>();
+//		for(int i = 0; i < mysMyartmagAryAppoggio.length; i++){
+//			MysMyartmag myartAppoggio = mysMyartmagAryAppoggio[i];
+//			
+//			PgArticoli artic = pgArticoliDao.getArticoloDaCodice(mysMyartmagAry[i].getOarti());
+//			if(myartAppoggio != null){
+//				mysMyartmagAry[i].setOartiXgrup("0"); // non di appoggio
+//			}
+//			if(artic == null){
+//				// se e' un articolo in ingrosso ma non nelle foto, quindi non so i fratelli, continuo e basta
+//				continue;
+//			}
+//			
+//			if(myartAppoggio == null){
+//				continue;
+//			}
+//			log.info("articolo in time: " + myartAppoggio.getOarti());
+//			
+//			// identifico la foto per articolo in analisi
+//			Integer idFoto = pgArticoliDao.getFotoArticoloDaCodice(myartAppoggio.getOarti());
+//			
+//			// se non ha foto disponibile, continuo con l'articolo successivo
+//			if(idFoto == -1){
+//				log.warn("non ha foto disponibile");
+//				continue;
+//			}
 			// quindi ha una foto
 			
-			String fotoSorgente = pgArticoliDao.getFotoNameArticoloDaId(idFoto);
-			log.info("foto: " + fotoSorgente + " (id: " + idFoto + ")");
-			
-			MysMyfotxar mysMyfotxar = new MysMyfotxar();
-			mysMyfotxar.setCsoci("CASC");
-			mysMyfotxar.setCtipoDdocm("foto");
-			mysMyfotxar.setCreviDdocm("0");
-			
-			String fratelloMaggiore = null;
-			String fotoDestinazione = null;
-			if(true){// fratelloMaggiore == null){
-				log.info("e' un fratello maggiore");
-				fratelloMaggiore = myartAppoggio.getOarti();
-				
-				String estensioneFile = StringUtils.lowerCase(fotoSorgente.substring(fotoSorgente.lastIndexOf(".") + 1));
-				// l'uinica estensione ammessa e' jpg
-				boolean estensioneAmmessa = true;
-				if(!(StringUtils.equals(estensioneFile, "jpg"))){
-					log.warn("estensione non gestita (" + estensioneFile + "), file: " + fotoSorgente);
-					estensioneAmmessa = false;
-					estensioneFile = "jpg";
-				}
-				
-				int ordineFoto = 0;
-				fotoDestinazione = fratelloMaggiore + "_" + ordineFoto + "_A_0_" + fratelloMaggiore + "." + estensioneFile;
-
-				mysMyfotxar.setOarti(fratelloMaggiore);
-				mysMyfotxar.setTfileDdocm(fotoDestinazione);
-				mysMyfotxarDao.salva(mysMyfotxar);
-
-				// rimuovo dalla lista delle foto da cancellare
-				File fileDaCanc = new File(dirFotoTime, fotoDestinazione);
-				log.info("file: " + fileDaCanc.getAbsolutePath());
-				if(fileDaCanc.exists()){
-					log.info("il file " + fileDaCanc.getAbsolutePath() + " deve rimanere");
-					for(int j = 0; j < fotoDaCancellareAry.length; j++){
-						if(fotoDaCancellareAry[j] == null){
-							continue;
-						}
-						if(StringUtils.equals(fotoDaCancellareAry[j].getName(), fileDaCanc.getName())){
-							fotoDaCancellareAry[j] = null;
-							break;
-						}
-					}
-				}
-				
-				copyFile(dirFoto, fotoSorgente, dirFotoTime, fotoDestinazione);
-				if(!(estensioneAmmessa)){
-					convertiInJpg(dirFotoTime, fotoDestinazione);
-				}
-				log.info("elaborato articolo maggiore " + myartAppoggio.getOarti() + " e quindi rimossa dalla lista l'articolo");
-				// iterMyartmag.remove();
-				mysMyartmagAryAppoggio[i] = null;
-			}
-			
-			// cerco se ha fratelli (compreso se stesso) che condividono la stessa foto
-			List<PgArticoli> fratelliLs = pgArticoliDao.getArticoloFratelliLsDaCodiceFoto(idFoto);
-			PgArticoli fratelliAry[] = fratelliLs.toArray(new PgArticoli[fratelliLs.size()]);
-			log.info("fratelli: " + fratelliAry.length);
-			
-			if(fratelliAry.length == 1){ // e' solo lui
-				continue;
-			}
-			
-			// Iterator<Articoli> iterArticoli = fratelliLs.iterator();
-			for(int j = 0; j < fratelliAry.length; j++){
-				PgArticoli art = fratelliAry[j];
-				log.info("articolo: " + art.getCodice() + " (id: " + art.getId() + ")");
-				
-				// controllo che effettivamente l'articolo abbia la foto come ordine minore e non come secondo o altro
-				boolean ePrimaFoto = pgArticoliDao.checkArticoloHaComePrimaFotoIdFoto(art, idFoto);
-				
-				if(!(ePrimaFoto)){
-					log.info("non coincide con la foto di ordine minore (fratello scartato)");
-					continue;
-				}
-				
-				if(StringUtils.equals(fratelloMaggiore, art.getCodice())){
-					log.info("continuo perche' e' lui stesso");
-					continue; // con il fratello successivo
-				}else{
-					log.info("e' un fratello minore che deve ereditare la foto del fratello maggiore (" + fratelloMaggiore + ")");
-					
-					// myartmagDao.definisciFratelloMaggiore(art.getCodice(), fratelloMaggiore);
-					// oartiLs.add(art.getCodice());
-					// oarti_xgrupLs.add(fratelloMaggiore);
-
-					mysMyfotxar = new MysMyfotxar();
-					mysMyfotxar.setCsoci("CASC");
-					mysMyfotxar.setCtipoDdocm("foto");
-					mysMyfotxar.setCreviDdocm("0");
-					mysMyfotxar.setOarti(art.getCodice());
-					mysMyfotxar.setTfileDdocm(fotoDestinazione);
-
-					mysMyfotxarDao.salva(mysMyfotxar);
-					
-					log.info("elaborato articolo minore " + art.getCodice() + " e quindi rimossa dalla lista l'articolo");
-					
-					for(int y = 0; y < mysMyartmagAryAppoggio.length; y++){
-						MysMyartmag myartRem = mysMyartmagAryAppoggio[y];
-						if(myartRem == null){
-							continue;
-						}
-						if(StringUtils.equals(myartRem.getOarti(), art.getCodice())){
-							log.info("Rimossa: " + myartRem.getOarti() + ", " + myartRem.getOartiXgrup());
-							mysMyartmagAryAppoggio[y] = null;
-							mysMyartmagAry[y].setOartiXgrup(fratelloMaggiore);
-						}
-					}
-				}
-			}
-		}
+//			String fotoSorgente = pgArticoliDao.getFotoNameArticoloDaId(idFoto);
+//			log.info("foto: " + fotoSorgente + " (id: " + idFoto + ")");
+//			
+//			MysMyfotxar mysMyfotxar = new MysMyfotxar();
+//			mysMyfotxar.setCsoci("CASC");
+//			mysMyfotxar.setCtipoDdocm("foto");
+//			mysMyfotxar.setCreviDdocm("0");
+//			
+//			String fratelloMaggiore = null;
+//			String fotoDestinazione = null;
+//			if(true){// fratelloMaggiore == null){
+//				log.info("e' un fratello maggiore");
+//				fratelloMaggiore = myartAppoggio.getOarti();
+//				
+//				String estensioneFile = StringUtils.lowerCase(fotoSorgente.substring(fotoSorgente.lastIndexOf(".") + 1));
+//				// l'uinica estensione ammessa e' jpg
+//				boolean estensioneAmmessa = true;
+//				if(!(StringUtils.equals(estensioneFile, "jpg"))){
+//					log.warn("estensione non gestita (" + estensioneFile + "), file: " + fotoSorgente);
+//					estensioneAmmessa = false;
+//					estensioneFile = "jpg";
+//				}
+//				
+//				int ordineFoto = 0;
+//				fotoDestinazione = fratelloMaggiore + "_" + ordineFoto + "_A_0_" + fratelloMaggiore + "." + estensioneFile;
+//
+//				mysMyfotxar.setOarti(fratelloMaggiore);
+//				mysMyfotxar.setTfileDdocm(fotoDestinazione);
+//				mysMyfotxarDao.salva(mysMyfotxar);
+//
+//				// rimuovo dalla lista delle foto da cancellare
+//				File fileDaCanc = new File(dirFotoTime, fotoDestinazione);
+//				log.info("file: " + fileDaCanc.getAbsolutePath());
+//				if(fileDaCanc.exists()){
+//					log.info("il file " + fileDaCanc.getAbsolutePath() + " deve rimanere");
+//					for(int j = 0; j < fotoDaCancellareAry.length; j++){
+//						if(fotoDaCancellareAry[j] == null){
+//							continue;
+//						}
+//						if(StringUtils.equals(fotoDaCancellareAry[j].getName(), fileDaCanc.getName())){
+//							fotoDaCancellareAry[j] = null;
+//							break;
+//						}
+//					}
+//				}
+//				
+//				copyFile(dirFoto, fotoSorgente, dirFotoTime, fotoDestinazione);
+//				if(!(estensioneAmmessa)){
+//					convertiInJpg(dirFotoTime, fotoDestinazione);
+//				}
+//				log.info("elaborato articolo maggiore " + myartAppoggio.getOarti() + " e quindi rimossa dalla lista l'articolo");
+//				// iterMyartmag.remove();
+//				mysMyartmagAryAppoggio[i] = null;
+//			}
+//			
+//			// cerco se ha fratelli (compreso se stesso) che condividono la stessa foto
+//			List<PgArticoli> fratelliLs = pgArticoliDao.getArticoloFratelliLsDaCodiceFoto(idFoto);
+//			PgArticoli fratelliAry[] = fratelliLs.toArray(new PgArticoli[fratelliLs.size()]);
+//			log.info("fratelli: " + fratelliAry.length);
+//			
+//			if(fratelliAry.length == 1){ // e' solo lui
+//				continue;
+//			}
+//			
+//			// Iterator<Articoli> iterArticoli = fratelliLs.iterator();
+//			for(int j = 0; j < fratelliAry.length; j++){
+//				PgArticoli art = fratelliAry[j];
+//				log.info("articolo: " + art.getCodice() + " (id: " + art.getId() + ")");
+//				
+//				// controllo che effettivamente l'articolo abbia la foto come ordine minore e non come secondo o altro
+//				boolean ePrimaFoto = pgArticoliDao.checkArticoloHaComePrimaFotoIdFoto(art, idFoto);
+//				
+//				if(!(ePrimaFoto)){
+//					log.info("non coincide con la foto di ordine minore (fratello scartato)");
+//					continue;
+//				}
+//				
+//				if(StringUtils.equals(fratelloMaggiore, art.getCodice())){
+//					log.info("continuo perche' e' lui stesso");
+//					continue; // con il fratello successivo
+//				}else{
+//					log.info("e' un fratello minore che deve ereditare la foto del fratello maggiore (" + fratelloMaggiore + ")");
+//					
+//					// myartmagDao.definisciFratelloMaggiore(art.getCodice(), fratelloMaggiore);
+//					// oartiLs.add(art.getCodice());
+//					// oarti_xgrupLs.add(fratelloMaggiore);
+//
+//					mysMyfotxar = new MysMyfotxar();
+//					mysMyfotxar.setCsoci("CASC");
+//					mysMyfotxar.setCtipoDdocm("foto");
+//					mysMyfotxar.setCreviDdocm("0");
+//					mysMyfotxar.setOarti(art.getCodice());
+//					mysMyfotxar.setTfileDdocm(fotoDestinazione);
+//
+//					mysMyfotxarDao.salva(mysMyfotxar);
+//					
+//					log.info("elaborato articolo minore " + art.getCodice() + " e quindi rimossa dalla lista l'articolo");
+//					
+//					for(int y = 0; y < mysMyartmagAryAppoggio.length; y++){
+//						MysMyartmag myartRem = mysMyartmagAryAppoggio[y];
+//						if(myartRem == null){
+//							continue;
+//						}
+//						if(StringUtils.equals(myartRem.getOarti(), art.getCodice())){
+//							log.info("Rimossa: " + myartRem.getOarti() + ", " + myartRem.getOartiXgrup());
+//							mysMyartmagAryAppoggio[y] = null;
+//							mysMyartmagAry[y].setOartiXgrup(fratelloMaggiore);
+//						}
+//					}
+//				}
+//			}
+//		}
 		
 		// String oartiAry[] = oartiLs.toArray(new String[oartiLs.size()]);
 		// String oarti_xgrupAry[] = oarti_xgrupLs.toArray(new String[oarti_xgrupLs.size()]);
 		// String cprec_dartiAry[] = cprec_dartiLs.toArray(new String[cprec_dartiLs.size()]);
 		// myartmagDao.aggiornaXgrupCprec(oartiAry, oarti_xgrupAry, cprec_dartiAry);
-		mysMyartmagDao.aggiornaXgrup(mysMyartmagAry);
+//		mysMyartmagDao.aggiornaXgrup(mysMyartmagAry);
 		
-		log.info("]" + "elaboraArtInMyartmag");
+//		log.info("]" + "elaboraArtInMyartmag");
 		// ritorna tutti gli articoli che non hanno comunque foto
 		// return artMyartmagLs;
 		// return new LinkedList<Myartmag>(Arrays.asList(myartmagAry));
-		return mysMyartmagAryAppoggio;
-	}
+//		return mysMyartmagAryAppoggio;
+//	}
 	
 	// restituisce la lista delle foto già caricate sulla cartella di time
 	// utilizza unita' di rete mappata su T: === \\time.cascino.it\c$\MyMB\Archives\articoli_img\B2B\0

@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.util.List;
 import it.cascino.time.dbmysql.model.MysMyartmag;
 import it.cascino.time.utils.Resources;
+import it.cascino.time.dbas.model.AsAnmar0f;
 import it.cascino.time.dbmysql.dao.MysMyartmagDao;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityTransaction;
@@ -36,6 +37,24 @@ public class MysMyartmagDaoMng implements MysMyartmagDao, Serializable{
 			log.fatal(e.toString());
 		}
 		return articoli;
+	}
+	
+	public MysMyartmag getDaOarti(String oarti){
+		MysMyartmag o = null;
+		try{
+			try{
+				utx.begin();
+				Query query = em.createNamedQuery("Myartmag.findByOarti");
+				query.setParameter("oarti", oarti);
+				o = (MysMyartmag)query.getSingleResult();
+			}catch(NoResultException e){
+				o = null;
+			}
+			utx.commit();
+		}catch(Exception e){
+			log.fatal(e.toString());
+		}
+		return o;
 	}
 	
 	public void aggiornaXgrup(MysMyartmag myartmag[]){
