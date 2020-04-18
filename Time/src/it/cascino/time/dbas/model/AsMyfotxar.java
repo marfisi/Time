@@ -1,18 +1,18 @@
-package it.cascino.time.dbmysql.model;
+package it.cascino.time.dbas.model;
 
 import java.io.Serializable;
 import javax.persistence.*;
 
 /**
-* The persistent class for the myfotxar database table.
+* The persistent class for the mymb/myfotxar database table.
 * 
 */
 @Entity(name="Myfotxar")
+@Table(name="Myfotxar", schema="mymb")
 @NamedQueries({
-		@NamedQuery(name = "Myfotxar.findAll", query = "SELECT p FROM Myfotxar p"),
-		@NamedQuery(name = "Myfotxar.svuota", query = "DELETE FROM Myfotxar p WHERE p.csoci = 'CASC'")
+		@NamedQuery(name = "Myfotxar.findAll", query = "SELECT p FROM Myfotxar p")
 })
-public class MysMyfotxar implements Serializable{
+public class AsMyfotxar implements Serializable{
 	private static final long serialVersionUID = 1L;
 	
 	private String csoci;
@@ -21,18 +21,9 @@ public class MysMyfotxar implements Serializable{
 	private String ctipo_ddocm;
 	private String tfile_ddocm;
 	
-	public MysMyfotxar(){
+	public AsMyfotxar(){
 	}
 
-	public MysMyfotxar(String csoci, String oarti, String crevi_ddocm, String ctipo_ddocm, String tfile_ddocm){
-		super();
-		this.csoci = csoci;
-		this.oarti = oarti;
-		this.crevi_ddocm = crevi_ddocm;
-		this.ctipo_ddocm = ctipo_ddocm;
-		this.tfile_ddocm = tfile_ddocm;
-	}
-	
 	public String getCsoci(){
 		return csoci;
 	}
@@ -91,8 +82,8 @@ public class MysMyfotxar implements Serializable{
 
 	@Override
 	public boolean equals(Object obj){
-		if(obj instanceof MysMyfotxar){
-			if((this.oarti == ((MysMyfotxar)obj).oarti)&&(this.tfile_ddocm == ((MysMyfotxar)obj).tfile_ddocm)){
+		if(obj instanceof AsMyfotxar){
+			if((this.oarti == ((AsMyfotxar)obj).oarti)&&(this.tfile_ddocm == ((AsMyfotxar)obj).tfile_ddocm)){
 				return true;
 			}else{
 				return false;
@@ -103,6 +94,6 @@ public class MysMyfotxar implements Serializable{
 	
 	@Override
 	public String toString(){
-		return "MysMyfotxar [csoci=" + csoci + ", oarti=" + oarti + ", crevi_ddocm=" + crevi_ddocm + ", ctipo_ddocm=" + ctipo_ddocm + ", tfile_ddocm=" + tfile_ddocm + "]";
+		return "AsMyfotxar [csoci=" + csoci + ", oarti=" + oarti + ", crevi_ddocm=" + crevi_ddocm + ", ctipo_ddocm=" + ctipo_ddocm + ", tfile_ddocm=" + tfile_ddocm + "]";
 	}
 }

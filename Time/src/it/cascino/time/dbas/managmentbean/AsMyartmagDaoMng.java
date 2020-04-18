@@ -1,11 +1,10 @@
-package it.cascino.time.dbmysql.managmentbean;
+package it.cascino.time.dbas.managmentbean;
 
 import java.io.Serializable;
 import java.util.List;
-import it.cascino.time.dbmysql.model.MysMyartmag;
 import it.cascino.time.utils.Resources;
-import it.cascino.time.dbas.model.AsAnmar0f;
-import it.cascino.time.dbmysql.dao.MysMyartmagDao;
+import it.cascino.time.dbas.dao.AsMyartmagDao;
+import it.cascino.time.dbas.model.AsMyartmag;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityTransaction;
 import javax.persistence.NoResultException;
@@ -13,22 +12,22 @@ import javax.persistence.Query;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 
-public class MysMyartmagDaoMng implements MysMyartmagDao, Serializable{
+public class AsMyartmagDaoMng implements AsMyartmagDao, Serializable{
 	private static final long serialVersionUID = 1L;
 	private Resources res = new Resources();
-	private EntityManager em = res.getEmMysql();
-	private EntityTransaction utx = res.getUtxMysql();
+	private EntityManager em = res.getEmAs();
+	private EntityTransaction utx = res.getUtxAs();	
 	
-	Logger log = Logger.getLogger(MysMyartmagDaoMng.class);
+	Logger log = Logger.getLogger(AsMyartmagDaoMng.class);
 	
 	@SuppressWarnings("unchecked")
-	public List<MysMyartmag> getAll(){
-		List<MysMyartmag> articoli = null;
+	public List<AsMyartmag> getAll(){
+		List<AsMyartmag> articoli = null;
 		try{
 			try{
 				utx.begin();
 				Query query = em.createNamedQuery("Myartmag.findAll");
-				articoli = (List<MysMyartmag>)query.getResultList();
+				articoli = (List<AsMyartmag>)query.getResultList();
 			}catch(NoResultException e){
 				articoli = null;
 			}
@@ -39,14 +38,14 @@ public class MysMyartmagDaoMng implements MysMyartmagDao, Serializable{
 		return articoli;
 	}
 	
-	public MysMyartmag getDaOarti(String oarti){
-		MysMyartmag o = null;
+	public AsMyartmag getDaOarti(String oarti){
+		AsMyartmag o = null;
 		try{
 			try{
 				utx.begin();
 				Query query = em.createNamedQuery("Myartmag.findByOarti");
 				query.setParameter("oarti", oarti);
-				o = (MysMyartmag)query.getSingleResult();
+				o = (AsMyartmag)query.getSingleResult();
 			}catch(NoResultException e){
 				o = null;
 			}
@@ -57,7 +56,7 @@ public class MysMyartmagDaoMng implements MysMyartmagDao, Serializable{
 		return o;
 	}
 	
-	public void aggiornaXgrup(MysMyartmag myartmag[]){
+	public void aggiornaXgrup(AsMyartmag myartmag[]){
 		try{
 			try{
 				utx.begin();
@@ -78,21 +77,6 @@ public class MysMyartmagDaoMng implements MysMyartmagDao, Serializable{
 						em.clear();
 					}
 				}
-			}finally{
-				utx.commit();
-			}
-		}catch(Exception e){
-			log.fatal(e.toString());
-		}
-	}
-	
-	public void resettaTabella(){
-		try{
-			try{
-				utx.begin();
-				String sql = "update myartmag set oarti_xgrup='0' where csoci!='' and iarti!='' and oarti!=''";
-				Query query = em.createNativeQuery(sql);
-				query.executeUpdate();
 			}finally{
 				utx.commit();
 			}

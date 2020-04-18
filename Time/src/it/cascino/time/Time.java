@@ -1,23 +1,17 @@
 package it.cascino.time;
 
-import it.cascino.time.dbpg.dao.PgArticoliDao;
-import it.cascino.time.dbpg.managmenntbean.PgArticoliDaoMng;
-import it.cascino.time.dbpg.model.PgArticoli;
 import it.cascino.time.dbas.dao.AsAnmag0fDao;
 import it.cascino.time.dbas.dao.AsAnmar0fDao;
-import it.cascino.time.dbas.dao.AsTabe20fDao;
+import it.cascino.time.dbas.dao.AsMyartmagDao;
+import it.cascino.time.dbas.dao.AsMyfotxarDao;
 import it.cascino.time.dbas.managmentbean.AsAnmag0fDaoMng;
 import it.cascino.time.dbas.managmentbean.AsAnmar0fDaoMng;
-import it.cascino.time.dbas.managmentbean.AsTabe20fDaoMng;
+import it.cascino.time.dbas.managmentbean.AsMyartmagDaoMng;
+import it.cascino.time.dbas.managmentbean.AsMyfotxarDaoMng;
 import it.cascino.time.dbas.model.AsAnmag0f;
 import it.cascino.time.dbas.model.AsAnmar0f;
-import it.cascino.time.dbas.model.AsTabe20f;
-import it.cascino.time.dbmysql.dao.MysMyartmagDao;
-import it.cascino.time.dbmysql.dao.MysMyfotxarDao;
-import it.cascino.time.dbmysql.managmentbean.MysMyartmagDaoMng;
-import it.cascino.time.dbmysql.managmentbean.MysMyfotxarDaoMng;
-import it.cascino.time.dbmysql.model.MysMyartmag;
-import it.cascino.time.dbmysql.model.MysMyfotxar;
+import it.cascino.time.dbas.model.AsMyartmag;
+import it.cascino.time.dbas.model.AsMyfotxar;
 import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
 import java.io.File;
@@ -40,24 +34,12 @@ public class Time{
 	private final String dirFoto = "c:\\dev\\foto";
 	private final String dirFotoTime = "t:";
 	
-	private PgArticoliDao pgArticoliDao = new PgArticoliDaoMng();
-	// private static List<Articoli> pgArticoliLs;
-	// private static PgArticoli pgArticoliAry[];
+	private AsMyartmagDao asMyartmagDao = new AsMyartmagDaoMng();
+	private List<AsMyartmag> asMyartmagLs;
+	private AsMyartmag asMyartmagAry[];
+	//private MysMyartmag asMyartmagAryAppoggio[];
 	
-//	private static PgProduttoriDao pgProduttoriDao = new PgProduttoriDaoMng();
-//	private static List<PgProduttori> pgProduttoriLs;
-//	private static PgProduttori pgProduttoriAry[];
-//	private static int prodSizePad = 0;
-//	private static Map<Integer, String> produttoriMap = new HashMap<Integer, String>();
-	
-	private MysMyartmagDao mysMyartmagDao = new MysMyartmagDaoMng();
-	private List<MysMyartmag> mysMyartmagLs;
-	private MysMyartmag mysMyartmagAry[];
-	//private MysMyartmag mysMyartmagAryAppoggio[];
-	
-	private MysMyfotxarDao mysMyfotxarDao = new MysMyfotxarDaoMng();
-	
-	// private AsTabe20fDao asTabe20fDao = new AsTabe20fDaoMng();
+	private AsMyfotxarDao asMyfotxarDao = new AsMyfotxarDaoMng();
 	
 	private AsAnmag0fDao asAnmag0fDao = new AsAnmag0fDaoMng();
 	private List<AsAnmag0f> asAnmagLs;
@@ -69,16 +51,12 @@ public class Time{
 	
 	public Time(String args[]){
 		log.info("[" + "Time");
-				
-		mysMyartmagDao.resettaTabella();
-		
-		mysMyfotxarDao.svuotaTabella();
 		
 		asAnmarLs = asAnmar0fDao.getAll();
 		
 		fotoDaCancellareAry = getFileCaricati();
 		
-		mysMyartmagLs = new ArrayList<MysMyartmag>();
+		asMyartmagLs = new ArrayList<AsMyartmag>();
 		
 		Iterator<AsAnmar0f> iter_asAnmar = asAnmarLs.iterator();
 		while(iter_asAnmar.hasNext()){
@@ -118,17 +96,17 @@ public class Time{
 			while(iter_asAnmag.hasNext()){
 				AsAnmag0f asAnmag0f = iter_asAnmag.next();
 				
-				MysMyartmag mysMyartmag = mysMyartmagDao.getDaOarti(asAnmag0f.getMcoda());
-				if(mysMyartmag == null){
+				AsMyartmag asMyartmag = asMyartmagDao.getDaOarti(asAnmag0f.getMcoda());
+				if(asMyartmag == null){
 					log.error(asAnmag0f.getMcoda() + " non presente in Myartmag");
 					continue;
 				}						
 				
 				if(soloPrimo){
 					log.info("e' un fratello maggiore");
-					fratelloMaggiore = mysMyartmag.getOarti();
+					fratelloMaggiore = StringUtils.trim(asMyartmag.getOarti());
 					
-					mysMyartmag.setOartiXgrup("0");
+					asMyartmag.setOartiXgrup("0");
 					
 					int ordineFoto = 0;
 					fotoDestinazione = fratelloMaggiore + "_" + ordineFoto + "_A_0_" + fratelloMaggiore + "." + estensioneFile;
@@ -158,43 +136,31 @@ public class Time{
 				}else{
 					log.info("e' un fratello minore che deve ereditare la foto del fratello maggiore (" + fratelloMaggiore + ")");
 					
-					mysMyartmag.setOartiXgrup(fratelloMaggiore);					
+					asMyartmag.setOartiXgrup(fratelloMaggiore);					
 				}
 				
-				mysMyartmagLs.add(mysMyartmag);
+				asMyartmagLs.add(asMyartmag);
 				
 				// in myfotxar vanno tutti gli articoli, sia fratelli maggiori che minori 
-				MysMyfotxar mysMyfotxar = new MysMyfotxar();
-				mysMyfotxar.setCsoci("CASC");
-				mysMyfotxar.setCtipoDdocm("foto");
-				mysMyfotxar.setCreviDdocm("0");
-				mysMyfotxar.setOarti(mysMyartmag.getOarti());
-				mysMyfotxar.setTfileDdocm(fotoDestinazione);
-				mysMyfotxarDao.salva(mysMyfotxar);
+				AsMyfotxar asMyfotxar = new AsMyfotxar();
+				asMyfotxar.setCsoci("CASC");
+				asMyfotxar.setCtipoDdocm("foto");
+				asMyfotxar.setCreviDdocm("0");
+				asMyfotxar.setOarti(asMyartmag.getOarti());
+				asMyfotxar.setTfileDdocm(fotoDestinazione);
+				asMyfotxarDao.salva(asMyfotxar);
 			}
 		}
 		
 		
-		mysMyartmagAry = mysMyartmagLs.toArray(new MysMyartmag[mysMyartmagLs.size()]);
+		asMyartmagAry = asMyartmagLs.toArray(new AsMyartmag[asMyartmagLs.size()]);
 		
-		mysMyartmagDao.aggiornaXgrup(mysMyartmagAry);
+		asMyartmagDao.aggiornaXgrup(asMyartmagAry);
 		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-//		mysMyartmagLs = mysMyartmagDao.getAll();
+		//	asMyartmagLs = asMyartmagDao.getAll();
 		// articoliLs = articoliDao.getAll();
-//		mysMyartmagAry = mysMyartmagLs.toArray(new MysMyartmag[mysMyartmagLs.size()]);
-//		mysMyartmagAryAppoggio = mysMyartmagAry.clone();
+//		asMyartmagAry = asMyartmagLs.toArray(new MysMyartmag[asMyartmagLs.size()]);
+//		asMyartmagAryAppoggio = asMyartmagAry.clone();
 		
 		// artMyartmagLs = identificaArtInMyartmagNonPostgres();
 		// artInPostgresNonMyartmagLs = identificaArtInPostgresNonMyartmag();
@@ -226,8 +192,8 @@ public class Time{
 		//pgArticoliDao.close();
 		asAnmar0fDao.close();
 		asAnmag0fDao.close();
-		mysMyartmagDao.close();
-		mysMyfotxarDao.close();
+		asMyartmagDao.close();
+		asMyfotxarDao.close();
 		
 		log.info("]" + "Time");
 	}
@@ -238,12 +204,12 @@ public class Time{
 //		// List<String> oartiLs = new ArrayList<String>();
 //		// List<String> oarti_xgrupLs = new ArrayList<String>();
 //		// List<String> cprec_dartiLs = new ArrayList<String>();
-//		for(int i = 0; i < mysMyartmagAryAppoggio.length; i++){
-//			MysMyartmag myartAppoggio = mysMyartmagAryAppoggio[i];
+//		for(int i = 0; i < asMyartmagAryAppoggio.length; i++){
+//			MysMyartmag myartAppoggio = asMyartmagAryAppoggio[i];
 //			
-//			PgArticoli artic = pgArticoliDao.getArticoloDaCodice(mysMyartmagAry[i].getOarti());
+//			PgArticoli artic = pgArticoliDao.getArticoloDaCodice(asMyartmagAry[i].getOarti());
 //			if(myartAppoggio != null){
-//				mysMyartmagAry[i].setOartiXgrup("0"); // non di appoggio
+//				asMyartmagAry[i].setOartiXgrup("0"); // non di appoggio
 //			}
 //			if(artic == null){
 //				// se e' un articolo in ingrosso ma non nelle foto, quindi non so i fratelli, continuo e basta
@@ -268,10 +234,10 @@ public class Time{
 //			String fotoSorgente = pgArticoliDao.getFotoNameArticoloDaId(idFoto);
 //			log.info("foto: " + fotoSorgente + " (id: " + idFoto + ")");
 //			
-//			MysMyfotxar mysMyfotxar = new MysMyfotxar();
-//			mysMyfotxar.setCsoci("CASC");
-//			mysMyfotxar.setCtipoDdocm("foto");
-//			mysMyfotxar.setCreviDdocm("0");
+//			MysMyfotxar asMyfotxar = new MysMyfotxar();
+//			asMyfotxar.setCsoci("CASC");
+//			asMyfotxar.setCtipoDdocm("foto");
+//			asMyfotxar.setCreviDdocm("0");
 //			
 //			String fratelloMaggiore = null;
 //			String fotoDestinazione = null;
@@ -291,9 +257,9 @@ public class Time{
 //				int ordineFoto = 0;
 //				fotoDestinazione = fratelloMaggiore + "_" + ordineFoto + "_A_0_" + fratelloMaggiore + "." + estensioneFile;
 //
-//				mysMyfotxar.setOarti(fratelloMaggiore);
-//				mysMyfotxar.setTfileDdocm(fotoDestinazione);
-//				mysMyfotxarDao.salva(mysMyfotxar);
+//				asMyfotxar.setOarti(fratelloMaggiore);
+//				asMyfotxar.setTfileDdocm(fotoDestinazione);
+//				asMyfotxarDao.salva(asMyfotxar);
 //
 //				// rimuovo dalla lista delle foto da cancellare
 //				File fileDaCanc = new File(dirFotoTime, fotoDestinazione);
@@ -317,7 +283,7 @@ public class Time{
 //				}
 //				log.info("elaborato articolo maggiore " + myartAppoggio.getOarti() + " e quindi rimossa dalla lista l'articolo");
 //				// iterMyartmag.remove();
-//				mysMyartmagAryAppoggio[i] = null;
+//				asMyartmagAryAppoggio[i] = null;
 //			}
 //			
 //			// cerco se ha fratelli (compreso se stesso) che condividono la stessa foto
@@ -352,26 +318,26 @@ public class Time{
 //					// oartiLs.add(art.getCodice());
 //					// oarti_xgrupLs.add(fratelloMaggiore);
 //
-//					mysMyfotxar = new MysMyfotxar();
-//					mysMyfotxar.setCsoci("CASC");
-//					mysMyfotxar.setCtipoDdocm("foto");
-//					mysMyfotxar.setCreviDdocm("0");
-//					mysMyfotxar.setOarti(art.getCodice());
-//					mysMyfotxar.setTfileDdocm(fotoDestinazione);
+//					asMyfotxar = new MysMyfotxar();
+//					asMyfotxar.setCsoci("CASC");
+//					asMyfotxar.setCtipoDdocm("foto");
+//					asMyfotxar.setCreviDdocm("0");
+//					asMyfotxar.setOarti(art.getCodice());
+//					asMyfotxar.setTfileDdocm(fotoDestinazione);
 //
-//					mysMyfotxarDao.salva(mysMyfotxar);
+//					asMyfotxarDao.salva(asMyfotxar);
 //					
 //					log.info("elaborato articolo minore " + art.getCodice() + " e quindi rimossa dalla lista l'articolo");
 //					
-//					for(int y = 0; y < mysMyartmagAryAppoggio.length; y++){
-//						MysMyartmag myartRem = mysMyartmagAryAppoggio[y];
+//					for(int y = 0; y < asMyartmagAryAppoggio.length; y++){
+//						MysMyartmag myartRem = asMyartmagAryAppoggio[y];
 //						if(myartRem == null){
 //							continue;
 //						}
 //						if(StringUtils.equals(myartRem.getOarti(), art.getCodice())){
 //							log.info("Rimossa: " + myartRem.getOarti() + ", " + myartRem.getOartiXgrup());
-//							mysMyartmagAryAppoggio[y] = null;
-//							mysMyartmagAry[y].setOartiXgrup(fratelloMaggiore);
+//							asMyartmagAryAppoggio[y] = null;
+//							asMyartmagAry[y].setOartiXgrup(fratelloMaggiore);
 //						}
 //					}
 //				}
@@ -382,13 +348,13 @@ public class Time{
 		// String oarti_xgrupAry[] = oarti_xgrupLs.toArray(new String[oarti_xgrupLs.size()]);
 		// String cprec_dartiAry[] = cprec_dartiLs.toArray(new String[cprec_dartiLs.size()]);
 		// myartmagDao.aggiornaXgrupCprec(oartiAry, oarti_xgrupAry, cprec_dartiAry);
-//		mysMyartmagDao.aggiornaXgrup(mysMyartmagAry);
+//		asMyartmagDao.aggiornaXgrup(asMyartmagAry);
 		
 //		log.info("]" + "elaboraArtInMyartmag");
 		// ritorna tutti gli articoli che non hanno comunque foto
 		// return artMyartmagLs;
 		// return new LinkedList<Myartmag>(Arrays.asList(myartmagAry));
-//		return mysMyartmagAryAppoggio;
+//		return asMyartmagAryAppoggio;
 //	}
 	
 	// restituisce la lista delle foto già caricate sulla cartella di time

@@ -7,8 +7,8 @@
 		<properties>
 			<property name="hibernate.connection.url" value="jdbc:as400://10.0.21.20/cas_dat;transaction isolation=none" />
 			<property name="hibernate.connection.driver_class" value="com.ibm.as400.access.AS400JDBCDriver" />
-			<property name="hibernate.connection.username" value="FERCAS" />
-			<property name="hibernate.connection.password" value="FERCAS" />
+			<property name="hibernate.connection.username" value="JAVAPGM" />
+			<property name="hibernate.connection.password" value="J4V4PGM" />
 			<property name="hibernate.connection.pool_size" value="1" />
 			<property name="hibernate.dialect" value="org.hibernate.dialect.DB2400Dialect" />
 			<property name="hibernate.show_sql" value="false" />
@@ -17,6 +17,7 @@
 		</properties>
 	</persistence-unit>
 	
+	<!-- 
 	<persistence-unit name="Postgresql" transaction-type="RESOURCE_LOCAL">
 		<properties>
 			<property name="hibernate.connection.url" value="jdbc:postgresql://10.0.21.32:5432/cascino_db" />
@@ -44,5 +45,5 @@
 			<property name="hibernate.use_sql_comments" value="false" />
 		</properties>
 	</persistence-unit>
-	
+	-->
 </persistence>
