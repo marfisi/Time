@@ -18,9 +18,13 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
@@ -37,22 +41,32 @@ public class Time{
 	private AsMyartmagDao asMyartmagDao = new AsMyartmagDaoMng();
 	private List<AsMyartmag> asMyartmagLs;
 	private AsMyartmag asMyartmagAry[];
-	//private MysMyartmag asMyartmagAryAppoggio[];
 	
 	private AsMyfotxarDao asMyfotxarDao = new AsMyfotxarDaoMng();
 	
 	private AsAnmag0fDao asAnmag0fDao = new AsAnmag0fDaoMng();
 	private List<AsAnmag0f> asAnmagLs;
-
+	
 	private AsAnmar0fDao asAnmar0fDao = new AsAnmar0fDaoMng();
 	private List<AsAnmar0f> asAnmarLs;
-
+	
 	private File fotoDaCancellareAry[] = null;
+	
+	private Boolean fotoSorgenteModificataRecentemente;
 	
 	public Time(String args[]){
 		log.info("[" + "Time");
 		
+		Date dataLimiteModifica = new Date(System.currentTimeMillis());
+		Calendar calendar = Calendar.getInstance();
+		calendar.setTime(dataLimiteModifica);
+		calendar.add(Calendar.MONTH, -2);
+		dataLimiteModifica = calendar.getTime();
+		
+		// non posso prendere i soli MODIF=M, perché mi perderei le foto semplicemente sostituite e con lo stesso nome (e che quindi non hanno subito modifca in anmar0f)
 		asAnmarLs = asAnmar0fDao.getAll();
+		// asAnmarLs.clear();
+		// asAnmarLs.add(asAnmar0fDao.getGruppoDaMcomp("10765"));
 		
 		fotoDaCancellareAry = getFileCaricati();
 		
@@ -61,9 +75,12 @@ public class Time{
 		Iterator<AsAnmar0f> iter_asAnmar = asAnmarLs.iterator();
 		while(iter_asAnmar.hasNext()){
 			AsAnmar0f asAnmar0f = iter_asAnmar.next();
-			log.info("raggruppamento: " + asAnmar0f.getMcomp() + " - " +  asAnmar0f.getMdes1());
+			log.info("****************** raggruppamento: " + asAnmar0f.getMcomp() + " - " + asAnmar0f.getMdes1());
 			
-			if(StringUtils.isEmpty(asAnmar0f.getMfoto())){
+			asAnmar0f.setModif(" ");
+			asAnmar0fDao.aggiorna(asAnmar0f);
+			
+			if(StringUtils.isBlank(asAnmar0f.getMfoto())){
 				log.warn(asAnmar0f.getMcomp() + " non ha nessuna foto definita");
 				continue;
 			}
@@ -71,23 +88,72 @@ public class Time{
 			String fotoSorgente = StringUtils.trim(StringUtils.split(asAnmar0f.getMfoto(), ",")[0]);
 			log.info("foto: " + fotoSorgente);
 			
-			String estensioneFile = StringUtils.lowerCase(fotoSorgente.substring(fotoSorgente.lastIndexOf(".") + 1));
-			// l'uinica estensione ammessa e' jpg
-			boolean estensioneAmmessa = true;
-			if(!(StringUtils.equals(estensioneFile, "jpg"))){
-				log.warn("estensione non gestita (" + estensioneFile + "), file: " + fotoSorgente);
-				estensioneAmmessa = false;
-				estensioneFile = "jpg";
+			fotoSorgenteModificataRecentemente = false;
+			File fileFotoSorgenteModificataRecentemente = new File(dirFoto, fotoSorgente);
+			if(fileFotoSorgenteModificataRecentemente.exists()){
+				long ultimaMod = fileFotoSorgenteModificataRecentemente.lastModified();
+				
+				Path fileFotoSorgenteModificataRecentementePath = fileFotoSorgenteModificataRecentemente.toPath();
+				BasicFileAttributes attributes = null;
+				try{
+					attributes = Files.readAttributes(fileFotoSorgenteModificataRecentementePath, BasicFileAttributes.class);
+				}catch(IOException e){
+					e.printStackTrace();
+				}
+				long timeAccess = attributes.lastAccessTime().to(TimeUnit.MILLISECONDS);
+				long timeCreation = attributes.creationTime().to(TimeUnit.MILLISECONDS);
+				long timeModif = attributes.lastModifiedTime().to(TimeUnit.MILLISECONDS);
+				// prendo la piu' grande tra le 3, ovvero la piu' moderna
+				ultimaMod = timeAccess;
+				if(Long.compare(ultimaMod, timeCreation) < 0) {
+					ultimaMod = timeCreation;
+				}
+				if(Long.compare(ultimaMod, timeModif) < 0) {
+					ultimaMod = timeModif;
+				}
+				
+				Date dataUltimaModifica = new Date(ultimaMod);
+				calendar = Calendar.getInstance();
+				calendar.setTime(dataUltimaModifica);
+				dataUltimaModifica = calendar.getTime();
+				
+				if(dataUltimaModifica.compareTo(dataLimiteModifica) > 0){
+					fotoSorgenteModificataRecentemente = true;
+					log.info("foto recentemente modificata");
+				}else{
+					fotoSorgenteModificataRecentemente = false;
+					log.info("foto non modificata di recente");
+				}
+			}else{
+				log.error(fotoSorgente + " non e' presente");
+				continue;
 			}
-							
+			
 			asAnmagLs = asAnmag0fDao.getArticoliDaMcompIngrosso(asAnmar0f.getMcomp());
 			
 			if(asAnmagLs.isEmpty()){
-				log.warn("raggruppamento " + asAnmar0f.getMcomp() + " non ha articoli all'ingrosso");
+				log.info("raggruppamento " + asAnmar0f.getMcomp() + " non ha articoli all'ingrosso");
 				continue;
 			}
 			
 			log.info("gruppo di " + asAnmagLs.size());
+			
+			boolean estensioneAmmessa = true;
+			if(fotoSorgenteModificataRecentemente){
+				String estensioneFile = fotoSorgente.substring(fotoSorgente.lastIndexOf(".") + 1);
+				// l'uinica estensione ammessa e' jpg
+				if(!(StringUtils.equalsIgnoreCase(estensioneFile, "jpg"))){
+					log.warn("estensione non gestita (" + estensioneFile + "), file: " + fotoSorgente);
+					estensioneAmmessa = false;
+					
+					String fotoDest = StringUtils.replace(StringUtils.replace(fotoSorgente, StringUtils.lowerCase(estensioneFile), "jpg"), StringUtils.upperCase(estensioneFile), "jpg");
+					copyFile(dirFoto, fotoSorgente, dirFoto, fotoDest);
+					fotoSorgente = fotoDest;
+					convertiInJpg(dirFoto, fotoSorgente);
+					log.info("foto: " + fotoSorgente);
+					estensioneFile = "jpg";
+				}
+			}
 			
 			Iterator<AsAnmag0f> iter_asAnmag = asAnmagLs.iterator();
 			Boolean soloPrimo = true;
@@ -100,7 +166,7 @@ public class Time{
 				if(asMyartmag == null){
 					log.error(asAnmag0f.getMcoda() + " non presente in Myartmag");
 					continue;
-				}						
+				}
 				
 				if(soloPrimo){
 					log.info("e' un fratello maggiore");
@@ -108,14 +174,13 @@ public class Time{
 					
 					asMyartmag.setOartiXgrup("0");
 					
-					int ordineFoto = 0;
-					fotoDestinazione = fratelloMaggiore + "_" + ordineFoto + "_A_0_" + fratelloMaggiore + "." + estensioneFile;
+					fotoDestinazione = determinaNomeFotoDestinazione(fratelloMaggiore, fotoSorgente);
 					
 					// rimuovo dalla lista delle foto da cancellare
 					File fileDaCanc = new File(dirFotoTime, fotoDestinazione);
 					log.info("file: " + fileDaCanc.getAbsolutePath());
 					if(fileDaCanc.exists()){
-						log.info("il file " + fileDaCanc.getAbsolutePath() + " deve rimanere");
+						log.info("il file " + fileDaCanc.getAbsolutePath() + " deve rimanere nella directory");
 						for(int j = 0; j < fotoDaCancellareAry.length; j++){
 							if(fotoDaCancellareAry[j] == null){
 								continue;
@@ -125,23 +190,30 @@ public class Time{
 								break;
 							}
 						}
+					}else{
+						// se non esiste, in ogni caso va copiata in time
+						log.info("La foto non esiste in Time, quindi la copio");
+						fotoSorgenteModificataRecentemente = true;
 					}
 					
-					copyFile(dirFoto, fotoSorgente, dirFotoTime, fotoDestinazione);
-					if(!(estensioneAmmessa)){
-						convertiInJpg(dirFotoTime, fotoDestinazione);
+					if(fotoSorgenteModificataRecentemente){
+						copyFile(dirFoto, fotoSorgente, dirFotoTime, fotoDestinazione);
+						if(!(estensioneAmmessa)){
+							File file = new File(dirFoto, fotoSorgente);
+							deleteFile(file);
+						}
 					}
-
+					
 					soloPrimo = false;
 				}else{
 					log.info("e' un fratello minore che deve ereditare la foto del fratello maggiore (" + fratelloMaggiore + ")");
 					
-					asMyartmag.setOartiXgrup(fratelloMaggiore);					
+					asMyartmag.setOartiXgrup(fratelloMaggiore);
 				}
 				
 				asMyartmagLs.add(asMyartmag);
 				
-				// in myfotxar vanno tutti gli articoli, sia fratelli maggiori che minori 
+				// in myfotxar vanno tutti gli articoli, sia fratelli maggiori che minori
 				AsMyfotxar asMyfotxar = new AsMyfotxar();
 				asMyfotxar.setCsoci("CASC");
 				asMyfotxar.setCtipoDdocm("foto");
@@ -149,35 +221,17 @@ public class Time{
 				asMyfotxar.setOarti(asMyartmag.getOarti());
 				asMyfotxar.setTfileDdocm(fotoDestinazione);
 				asMyfotxarDao.salva(asMyfotxar);
+				asMyfotxarDao.detach(asMyfotxar);
 			}
+			asAnmar0f.setModif(" ");
+			asAnmar0fDao.aggiorna(asAnmar0f);
+			asAnmar0fDao.detach(asAnmar0f);
 		}
-		
 		
 		asMyartmagAry = asMyartmagLs.toArray(new AsMyartmag[asMyartmagLs.size()]);
 		
 		asMyartmagDao.aggiornaXgrup(asMyartmagAry);
-		
-		//	asMyartmagLs = asMyartmagDao.getAll();
-		// articoliLs = articoliDao.getAll();
-//		asMyartmagAry = asMyartmagLs.toArray(new MysMyartmag[asMyartmagLs.size()]);
-//		asMyartmagAryAppoggio = asMyartmagAry.clone();
-		
-		// artMyartmagLs = identificaArtInMyartmagNonPostgres();
-		// artInPostgresNonMyartmagLs = identificaArtInPostgresNonMyartmag();
-		
-		// fotoDaCancellareAry = new LinkedList<File>(Arrays.asList(getFileCaricati()));
-		
-		
-//		MysMyartmag articoliTimeSenzaFoto[] = elaboraArtInMyartmag();
-//		// Iterator<Myartmag> iterArticoliTimeSenzaFoto = articoliTimeSenzaFoto.iterator();
-//		log.info("articolo in time senza foto");
-//		for(int i = 0; i < articoliTimeSenzaFoto.length; i++){
-//			MysMyartmag myart = articoliTimeSenzaFoto[i];
-//			if(myart == null){
-//				continue;
-//			}
-//			log.info("articolo in time: " + myart.getOarti());
-//		}
+		// asMyartmagDao.detach(asMyartmagAry);
 		
 		log.info("foto da cancellare");
 		for(int i = 0; i < fotoDaCancellareAry.length; i++){
@@ -189,7 +243,6 @@ public class Time{
 			deleteFile(fotoDaCan);
 		}
 		
-		//pgArticoliDao.close();
 		asAnmar0fDao.close();
 		asAnmag0fDao.close();
 		asMyartmagDao.close();
@@ -198,178 +251,24 @@ public class Time{
 		log.info("]" + "Time");
 	}
 	
-//	private MysMyartmag[] elaboraArtInMyartmag(){
-//		log.info("[" + "elaboraArtInMyartmag");
-//		
-//		// List<String> oartiLs = new ArrayList<String>();
-//		// List<String> oarti_xgrupLs = new ArrayList<String>();
-//		// List<String> cprec_dartiLs = new ArrayList<String>();
-//		for(int i = 0; i < asMyartmagAryAppoggio.length; i++){
-//			MysMyartmag myartAppoggio = asMyartmagAryAppoggio[i];
-//			
-//			PgArticoli artic = pgArticoliDao.getArticoloDaCodice(asMyartmagAry[i].getOarti());
-//			if(myartAppoggio != null){
-//				asMyartmagAry[i].setOartiXgrup("0"); // non di appoggio
-//			}
-//			if(artic == null){
-//				// se e' un articolo in ingrosso ma non nelle foto, quindi non so i fratelli, continuo e basta
-//				continue;
-//			}
-//			
-//			if(myartAppoggio == null){
-//				continue;
-//			}
-//			log.info("articolo in time: " + myartAppoggio.getOarti());
-//			
-//			// identifico la foto per articolo in analisi
-//			Integer idFoto = pgArticoliDao.getFotoArticoloDaCodice(myartAppoggio.getOarti());
-//			
-//			// se non ha foto disponibile, continuo con l'articolo successivo
-//			if(idFoto == -1){
-//				log.warn("non ha foto disponibile");
-//				continue;
-//			}
-			// quindi ha una foto
-			
-//			String fotoSorgente = pgArticoliDao.getFotoNameArticoloDaId(idFoto);
-//			log.info("foto: " + fotoSorgente + " (id: " + idFoto + ")");
-//			
-//			MysMyfotxar asMyfotxar = new MysMyfotxar();
-//			asMyfotxar.setCsoci("CASC");
-//			asMyfotxar.setCtipoDdocm("foto");
-//			asMyfotxar.setCreviDdocm("0");
-//			
-//			String fratelloMaggiore = null;
-//			String fotoDestinazione = null;
-//			if(true){// fratelloMaggiore == null){
-//				log.info("e' un fratello maggiore");
-//				fratelloMaggiore = myartAppoggio.getOarti();
-//				
-//				String estensioneFile = StringUtils.lowerCase(fotoSorgente.substring(fotoSorgente.lastIndexOf(".") + 1));
-//				// l'uinica estensione ammessa e' jpg
-//				boolean estensioneAmmessa = true;
-//				if(!(StringUtils.equals(estensioneFile, "jpg"))){
-//					log.warn("estensione non gestita (" + estensioneFile + "), file: " + fotoSorgente);
-//					estensioneAmmessa = false;
-//					estensioneFile = "jpg";
-//				}
-//				
-//				int ordineFoto = 0;
-//				fotoDestinazione = fratelloMaggiore + "_" + ordineFoto + "_A_0_" + fratelloMaggiore + "." + estensioneFile;
-//
-//				asMyfotxar.setOarti(fratelloMaggiore);
-//				asMyfotxar.setTfileDdocm(fotoDestinazione);
-//				asMyfotxarDao.salva(asMyfotxar);
-//
-//				// rimuovo dalla lista delle foto da cancellare
-//				File fileDaCanc = new File(dirFotoTime, fotoDestinazione);
-//				log.info("file: " + fileDaCanc.getAbsolutePath());
-//				if(fileDaCanc.exists()){
-//					log.info("il file " + fileDaCanc.getAbsolutePath() + " deve rimanere");
-//					for(int j = 0; j < fotoDaCancellareAry.length; j++){
-//						if(fotoDaCancellareAry[j] == null){
-//							continue;
-//						}
-//						if(StringUtils.equals(fotoDaCancellareAry[j].getName(), fileDaCanc.getName())){
-//							fotoDaCancellareAry[j] = null;
-//							break;
-//						}
-//					}
-//				}
-//				
-//				copyFile(dirFoto, fotoSorgente, dirFotoTime, fotoDestinazione);
-//				if(!(estensioneAmmessa)){
-//					convertiInJpg(dirFotoTime, fotoDestinazione);
-//				}
-//				log.info("elaborato articolo maggiore " + myartAppoggio.getOarti() + " e quindi rimossa dalla lista l'articolo");
-//				// iterMyartmag.remove();
-//				asMyartmagAryAppoggio[i] = null;
-//			}
-//			
-//			// cerco se ha fratelli (compreso se stesso) che condividono la stessa foto
-//			List<PgArticoli> fratelliLs = pgArticoliDao.getArticoloFratelliLsDaCodiceFoto(idFoto);
-//			PgArticoli fratelliAry[] = fratelliLs.toArray(new PgArticoli[fratelliLs.size()]);
-//			log.info("fratelli: " + fratelliAry.length);
-//			
-//			if(fratelliAry.length == 1){ // e' solo lui
-//				continue;
-//			}
-//			
-//			// Iterator<Articoli> iterArticoli = fratelliLs.iterator();
-//			for(int j = 0; j < fratelliAry.length; j++){
-//				PgArticoli art = fratelliAry[j];
-//				log.info("articolo: " + art.getCodice() + " (id: " + art.getId() + ")");
-//				
-//				// controllo che effettivamente l'articolo abbia la foto come ordine minore e non come secondo o altro
-//				boolean ePrimaFoto = pgArticoliDao.checkArticoloHaComePrimaFotoIdFoto(art, idFoto);
-//				
-//				if(!(ePrimaFoto)){
-//					log.info("non coincide con la foto di ordine minore (fratello scartato)");
-//					continue;
-//				}
-//				
-//				if(StringUtils.equals(fratelloMaggiore, art.getCodice())){
-//					log.info("continuo perche' e' lui stesso");
-//					continue; // con il fratello successivo
-//				}else{
-//					log.info("e' un fratello minore che deve ereditare la foto del fratello maggiore (" + fratelloMaggiore + ")");
-//					
-//					// myartmagDao.definisciFratelloMaggiore(art.getCodice(), fratelloMaggiore);
-//					// oartiLs.add(art.getCodice());
-//					// oarti_xgrupLs.add(fratelloMaggiore);
-//
-//					asMyfotxar = new MysMyfotxar();
-//					asMyfotxar.setCsoci("CASC");
-//					asMyfotxar.setCtipoDdocm("foto");
-//					asMyfotxar.setCreviDdocm("0");
-//					asMyfotxar.setOarti(art.getCodice());
-//					asMyfotxar.setTfileDdocm(fotoDestinazione);
-//
-//					asMyfotxarDao.salva(asMyfotxar);
-//					
-//					log.info("elaborato articolo minore " + art.getCodice() + " e quindi rimossa dalla lista l'articolo");
-//					
-//					for(int y = 0; y < asMyartmagAryAppoggio.length; y++){
-//						MysMyartmag myartRem = asMyartmagAryAppoggio[y];
-//						if(myartRem == null){
-//							continue;
-//						}
-//						if(StringUtils.equals(myartRem.getOarti(), art.getCodice())){
-//							log.info("Rimossa: " + myartRem.getOarti() + ", " + myartRem.getOartiXgrup());
-//							asMyartmagAryAppoggio[y] = null;
-//							asMyartmagAry[y].setOartiXgrup(fratelloMaggiore);
-//						}
-//					}
-//				}
-//			}
-//		}
-		
-		// String oartiAry[] = oartiLs.toArray(new String[oartiLs.size()]);
-		// String oarti_xgrupAry[] = oarti_xgrupLs.toArray(new String[oarti_xgrupLs.size()]);
-		// String cprec_dartiAry[] = cprec_dartiLs.toArray(new String[cprec_dartiLs.size()]);
-		// myartmagDao.aggiornaXgrupCprec(oartiAry, oarti_xgrupAry, cprec_dartiAry);
-//		asMyartmagDao.aggiornaXgrup(asMyartmagAry);
-		
-//		log.info("]" + "elaboraArtInMyartmag");
-		// ritorna tutti gli articoli che non hanno comunque foto
-		// return artMyartmagLs;
-		// return new LinkedList<Myartmag>(Arrays.asList(myartmagAry));
-//		return asMyartmagAryAppoggio;
-//	}
-	
 	// restituisce la lista delle foto già caricate sulla cartella di time
 	// utilizza unita' di rete mappata su T: === \\time.cascino.it\c$\MyMB\Archives\articoli_img\B2B\0
 	private File[] getFileCaricati(){
+		log.info("[" + "getFileCaricati");
 		File dirTime = new File(dirFotoTime);
 		File fileGiaCaricati[] = dirTime.listFiles();
+		
+		log.info("Presenti " + fileGiaCaricati.length + " foto");
 		
 		for(File fC : fileGiaCaricati){
 			log.info("Presente il file: " + fC.getName());
 		}
+		log.info("]" + "getFileCaricati");
 		return fileGiaCaricati;
 	}
 	
 	private void deleteFile(File file){
+		log.info("[" + "deleteFile");
 		System.gc();
 		// log.info("file " + (file.canExecute()?"true":"false"));
 		// log.info("file " + (file.canRead()?"true":"false"));
@@ -378,30 +277,34 @@ public class Time{
 			// if(file.delete()){
 			try{
 				if(Files.deleteIfExists(file.toPath())){
-					log.info("file " + file.getName() + " cancellato");
+					log.info("file " + file.getAbsolutePath() + " cancellato");
 				}else{
-					log.error("file " + file.getName() + " NON cancellato");
+					log.error("file " + file.getAbsolutePath() + " NON cancellato");
 				}
 			}catch(IOException e){
-				log.error("file " + file.getName() + " gestito con eccezione");
+				log.error("file " + file.getAbsolutePath() + " gestito con eccezione (in cancellazione)");
 				e.printStackTrace();
 			}
 		}
+		log.info("]" + "deleteFile");
 	}
 	
-	private Path copyFile(String pathSource, String nameSouce, String pathDestination, String nameDestination){
+	private Path copyFile(String pathSource, String nameSource, String pathDestination, String nameDestination){
+		log.info("[" + "copyFile (4 parametri)");
 		File fileSource = null;
 		File fileDestination = null;
-		if((pathSource != null) && (nameSouce != null)){
-			fileSource = new File(pathSource, nameSouce);
+		if((pathSource != null) && (nameSource != null)){
+			fileSource = new File(pathSource, nameSource);
 		}
 		if((pathDestination != null) && (nameDestination != null)){
 			fileDestination = new File(pathDestination, nameDestination);
 		}
+		log.info("]" + "copyFile (4 parametri)");
 		return copyFile(fileSource, fileDestination);
 	}
 	
 	private Path copyFile(File fileSource, File fileDestination){
+		log.info("[" + "copyFile (2 parametri)");
 		System.gc();
 		Path targetFile = null;
 		if((fileSource != null) && (Files.exists(fileSource.toPath())) && (fileDestination != null)){
@@ -409,12 +312,12 @@ public class Time{
 				try{
 					targetFile = Files.copy(fileSource.toPath(), fileDestination.toPath());
 					if(Files.isSameFile(targetFile, fileDestination.toPath())){
-						log.info("file " + fileSource.getName() + " copiato in " + fileDestination.getName());
+						log.info("file " + fileSource.getAbsolutePath() + " copiato in " + fileDestination.getAbsolutePath());
 					}else{
-						log.error("file " + fileSource.getName() + " NON copiato in " + fileDestination.getName());
+						log.error("file " + fileSource.getAbsolutePath() + " NON copiato in " + fileDestination.getAbsolutePath());
 					}
 				}catch(IOException e){
-					log.error("file " + fileSource.getName() + " gestito con eccezione");
+					log.error("file " + fileSource.getAbsolutePath() + " gestito con eccezione (in copia)");
 					e.printStackTrace();
 				}
 			}else{ // esiste gia' ma potrebbe essere che ha subito variazioni
@@ -423,21 +326,25 @@ public class Time{
 				}else{
 					// cancello il file
 					try{
-						log.info("file " + fileDestination.getName() + " cancellato");
+						log.info("file " + fileDestination.getAbsolutePath() + " cancellato");
 						Files.delete(fileDestination.toPath());
 					}catch(IOException e){
-						log.error("file " + fileDestination.getName() + " cancellato gestito con eccezione");
+						log.error("file " + fileDestination.getAbsolutePath() + " cancellato gestito con eccezione (in cancellazione)");
 						e.printStackTrace();
 					}
 					// chiamo ricorsivamente la copia
 					targetFile = copyFile(fileSource, fileDestination);
 				}
 			}
+		}else{
+			log.warn("file " + fileSource.getAbsolutePath() + " NON esiste");
 		}
+		log.info("]" + "copyFile (2 parametri)");
 		return targetFile;
 	}
 	
 	private void convertiInJpg(String pathDestination, String nameDestination){
+		log.info("[" + "convertiInJpg");
 		File fileDestination = null;
 		if((pathDestination != null) && (nameDestination != null)){
 			fileDestination = new File(pathDestination, nameDestination);
@@ -458,9 +365,11 @@ public class Time{
 			log.error("file " + fileDestination.getName() + " conversione con eccezione");
 			e.printStackTrace();
 		}
+		log.info("]" + "convertiInJpg");
 	}
 	
 	private String getResolution(File f){
+		// log.info("[" + "getResolution");
 		BufferedImage fimg = null;
 		try{
 			if((StringUtils.containsIgnoreCase(f.getPath(), "jpg")) || (StringUtils.containsIgnoreCase(f.getPath(), "jpeg"))){
@@ -473,10 +382,12 @@ public class Time{
 			log.error("file " + f.getName() + " gestito con eccezione");
 			e.printStackTrace();
 		}
+		// log.info("]" + "getResolution");
 		return (fimg == null) ? "n.d." : fimg.getWidth() + "x" + fimg.getHeight() + "px";
 	}
 	
 	private BufferedImage manageFileJpeg(File f) throws IOException{
+		// log.info("[" + "manageFileJpeg");
 		Iterator<ImageReader> readers = ImageIO.getImageReadersByFormatName("JPEG");
 		ImageReader reader = null;
 		while(readers.hasNext()){
@@ -494,6 +405,75 @@ public class Time{
 		raster = reader.readRaster(0, null);
 		// Create a new RGB image
 		BufferedImage bi = new BufferedImage(raster.getWidth(), raster.getHeight(), BufferedImage.TYPE_4BYTE_ABGR);
+		// log.info("]" + "manageFileJpeg");
 		return bi;
+	}
+	
+	private String determinaNomeFotoDestinazione(String fratelloMaggiore, String fotoSorgente){
+		log.info("[" + "determinaNomeFotoDestinazione");
+		
+		String fotoDestinazione = "";
+		
+		// File dirTime = new File(dirFotoTime);
+		// File fileGiaCaricati[] = dirTime.listFiles(new FilenameFilter(){
+		// @Override
+		// public boolean accept(File dir, String fileName){
+		// boolean result;
+		// if(StringUtils.startsWith(fileName, fratelloMaggiore + "_")){
+		// result = true;
+		// }else{
+		// result = false;
+		// }
+		// return result;
+		// }
+		// });
+		//
+		// int ordineFoto = 0;
+		// int versioneFoto = 0;
+		//
+		// if(fileGiaCaricati.length == 0){
+		// fotoDestinazione = fratelloMaggiore + "_" + ordineFoto + "_A_" + versioneFoto + "_" + fratelloMaggiore + ".jpg";
+		// }else if(fileGiaCaricati.length == 1){
+		// fotoDestinazione = fileGiaCaricati[0].getName();
+		// }else if(fileGiaCaricati.length > 1){
+		// log.warn("esistono " + fileGiaCaricati.length + " foto con lo stesso prefisso: " + fratelloMaggiore + "*");
+		// fotoDestinazione = fileGiaCaricati[0].getName();
+		// }
+		
+		int ordineFoto = 0;
+		int versioneFoto = 0;
+		
+		for(int i = 0; i < fotoDaCancellareAry.length; i++){
+			if(fotoDaCancellareAry[i] == null){
+				continue;
+			}
+			if(StringUtils.startsWith(fotoDaCancellareAry[i].getName(), fratelloMaggiore + "_")){
+				fotoDestinazione = fotoDaCancellareAry[i].getName();
+				break;
+			}
+		}
+		// se non e' gia' presente
+		if(StringUtils.isBlank(fotoDestinazione)){
+			fotoDestinazione = fratelloMaggiore + "_" + ordineFoto + "_A_" + versioneFoto + "_" + fratelloMaggiore + ".jpg";
+		}
+		
+		if(fotoSorgenteModificataRecentemente){
+			File fileSource = new File(dirFoto, fotoSorgente);
+			File fileDestination = new File(dirFotoTime, fotoDestinazione);
+			
+			if(fileDestination.exists()){
+				if(!((fileSource.length() == fileDestination.length()) && (StringUtils.equals(getResolution(fileSource), getResolution(fileDestination))))){
+					String strVersioneFoto = StringUtils.removeStart(fotoDestinazione, fratelloMaggiore + "_" + ordineFoto + "_A_");
+					strVersioneFoto = StringUtils.removeEnd(strVersioneFoto, "_" + fratelloMaggiore + ".jpg");
+					
+					versioneFoto = Integer.parseInt(strVersioneFoto);
+					versioneFoto = versioneFoto + 1;
+					
+					fotoDestinazione = fratelloMaggiore + "_" + ordineFoto + "_A_" + versioneFoto + "_" + fratelloMaggiore + ".jpg";
+				}
+			}
+		}
+		log.info("]" + "determinaNomeFotoDestinazione");
+		return fotoDestinazione;
 	}
 }

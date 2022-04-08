@@ -10,5 +10,7 @@ public interface AsMyartmagDao{
 	
 	void aggiornaXgrup(AsMyartmag myartmag[]);
 	
+//	void detach(Object entity);
+	
 	void close();
 }

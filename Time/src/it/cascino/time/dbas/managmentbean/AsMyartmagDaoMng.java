@@ -42,14 +42,12 @@ public class AsMyartmagDaoMng implements AsMyartmagDao, Serializable{
 		AsMyartmag o = null;
 		try{
 			try{
-				utx.begin();
 				Query query = em.createNamedQuery("Myartmag.findByOarti");
 				query.setParameter("oarti", oarti);
 				o = (AsMyartmag)query.getSingleResult();
 			}catch(NoResultException e){
 				o = null;
 			}
-			utx.commit();
 		}catch(Exception e){
 			log.fatal(e.toString());
 		}
@@ -84,6 +82,10 @@ public class AsMyartmagDaoMng implements AsMyartmagDao, Serializable{
 			log.fatal(e.toString());
 		}
 	}
+	
+//	public void detach(Object entity){
+//		em.detach(entity);
+//	}
 	
 	public void close(){
 		res.close();

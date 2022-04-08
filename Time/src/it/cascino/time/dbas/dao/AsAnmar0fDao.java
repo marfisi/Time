@@ -6,13 +6,11 @@ import it.cascino.time.dbas.model.AsAnmar0f;
 public interface AsAnmar0fDao{
 	List<AsAnmar0f> getAll();
 	
-//	void salva(AsAnmar0f a);
-//	
-//	void aggiorna(AsAnmar0f a);
-//	
-//	void elimina(AsAnmar0f a);
+	Boolean aggiorna(AsAnmar0f o);
 
 	AsAnmar0f getGruppoDaMcomp(String mcomp);
 
+	void detach(Object entity);
+	
 	void close();
 }
